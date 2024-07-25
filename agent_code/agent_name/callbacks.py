@@ -1,0 +1,6 @@
+def setup(self):
+    ...
+
+def act(self, game_state: dict):
+    ...
+    

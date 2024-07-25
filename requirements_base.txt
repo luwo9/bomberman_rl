@@ -1,0 +1,6 @@
+# Requirements stated as always given in section "2 Setup"
+pygame
+tqdm
+numpy
+scipy
+scikit-learn

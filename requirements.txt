@@ -1,0 +1,7 @@
+# Additional requirements we specifically need for our version
+# Even if they are already in docker (just to be sure as section 2 does not mention them)
+
+# Pytorch is commented as its better manually installed
+# torch
+# torchvision
+
