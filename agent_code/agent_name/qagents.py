@@ -31,7 +31,7 @@ class QLearningAgent(ABC):
         Updates Q based on the observed reward.
 
         :param state: dict
-        :param action: str
+        :param action: int
         :param reward: int
         :param next_state: dict
         """
@@ -96,9 +96,11 @@ class SimpleQLearningAgent(QLearningAgent):
         :param state: dict
         :param action: int
         :param reward: float
-        :param next_state: dict
+        :param next_state: dict or None
         """
-        self.Q.update(state, action, reward, next_state)
+        self.Q.new_step(state, action, reward, next_state)
+        if next_state is None:
+            self.Q.end_of_episode()
 
     def state_dict(self):
         """
