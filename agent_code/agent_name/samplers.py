@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 
-from .regression_models import RegressionModel
+from .regression_models import QRegressionModel
 from .training_memory import TrainingMemory
 
 class Sampler(ABC):
@@ -14,7 +14,7 @@ class Sampler(ABC):
     """
 
     @abstractmethod
-    def sample(self, allowed_coordinates, Q: RegressionModel, training_memory: TrainingMemory, batch_size: int):
+    def sample(self, allowed_coordinates, Q: QRegressionModel, training_memory: TrainingMemory, batch_size: int):
         """
         Returns a sample of the training set.
 
@@ -48,16 +48,16 @@ class RandomSampler(Sampler):
     """
 
     def __init__(self):
-        self.rng = np.random.default_rng()
+        self._rng = np.random.default_rng()
 
-    def sample(self, allowed_coordinates, Q: RegressionModel, training_memory: TrainingMemory, batch_size: int):
+    def sample(self, allowed_coordinates, Q: QRegressionModel, training_memory: TrainingMemory, batch_size: int):
         """
         Returns a sample of the training set.
 
         :param batch_size: int
         :return: np.ndarray, shape (batch_size, 2)
         """
-        indices = self.rng.choice(len(allowed_coordinates), batch_size, replace=False)
+        indices = self._rng.choice(len(allowed_coordinates), batch_size, replace=False)
         return allowed_coordinates[indices]
     
     def state_dict(self):

@@ -1,9 +1,11 @@
 """
 This module provides the memory buffer for training a regression-based Q-function.
 """
+from collections import deque
+
 import numpy as np
 
-from .regression_models import RegressionModel
+from .regression_models import QRegressionModel
 
 N_MAX_STEPS = 400 # See section 3
 
@@ -18,9 +20,10 @@ class TrainingMemory:
         :param capacity: int
         """
         self.capacity = capacity
-        self._memory = [] # List of games
+        self._memory = deque(maxlen=capacity) #[] # List of games
         self.new_episode()
         self._first_step = True
+        self._first_episode = True
         
         self._discount_was_set = False
 
@@ -31,7 +34,7 @@ class TrainingMemory:
         :param state: dict
         :param action: int
         :param reward: float
-        :param next_state: dict
+        :param next_state: dict or None
         """
         # If first step, add "state" to the memory buffer
         if self._first_step:
@@ -48,11 +51,14 @@ class TrainingMemory:
         """
         self._memory.append([[], [], [], None, None]) # states, actions, rewards, returns, q_values
         self._first_step = True
-        self._compute_and_store_returns()
+        if not self._first_episode:
+            self._compute_and_store_returns()
+        else:
+            self._first_episode = False
 
     def set_discount(self, discount):
         """
-        Sets the discount factor for the memory buffer.
+        Sets the discount factor for the memory buffer. This will update all returns in the memory buffer.
 
         :param discount: float
         """
@@ -68,13 +74,13 @@ class TrainingMemory:
 
     def _compute_and_store_returns(self):
         """
-        Computes the returns for the last (completed) game in the memory buffer.
+        Computes the returns for the last (completed) game in the memory buffer and stores them in the memory buffer.
         """
         self._compute_returns(-2) # -1 is the current game that is not finished yet by definition
 
-    def compute_and_store_q_values(self, Q: RegressionModel):
+    def compute_and_store_q_values(self, Q: QRegressionModel):
         """
-        Computes the Q-values for the memory buffer.
+        Computes the Q-values and write them to the memory buffer.
 
         :param Q: RegressionModel
         """
@@ -175,7 +181,7 @@ class TrainingMemory:
         
     def _compute_returns(self, game_number):
         """
-        Computes the returns for a game in the memory buffer.
+        Computes the returns for a game in the memory buffer. The returns are stored in the memory buffer.
 
         :param game_number: int
         """
@@ -185,7 +191,7 @@ class TrainingMemory:
 
     def _compute_q_values(self, Q, game_number):
         """
-        Computes the Q-values for a game in the memory buffer.
+        Computes the Q-values for a game in the memory buffer. The Q-values are stored in the memory buffer.
 
         :param Q: RegressionModel
         :param game_number: int

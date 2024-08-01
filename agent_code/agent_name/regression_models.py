@@ -1,32 +1,37 @@
 """
-Contains different regression models that can be used to predict the next action.
+Contains different regression models that can be used to approximate the Q-function.
 """
 
 from abc import ABC, abstractmethod
 
+import numpy as np
 
-class RegressionModel(ABC):
+# This should maybe be reworked to be a wrapper arround a regression model, that only knows about x and y, prediction and loss (?)
+# It will hold on to a transformer in any case
+class QRegressionModel(ABC):
     """
-    Abstract base class for regression models.
+    Abstract base class for Q-function regression models.
     """
 
     @abstractmethod
-    def predict(self, x):
+    def predict(self, states, actions):
         """
-        Predicts the value of x.
+        Predicts the value of the Q-function for the given states and actions.
 
-        :param x: np.ndarray
+        :param states: dict or list of dicts
+        :param actions: int or np.ndarray[int]
         :return: np.ndarray
         """
         pass
 
     @abstractmethod
-    def update(self, x, y):
+    def update(self, states, actions, targets):
         """
-        Updates the model based on the observed value y of x.
+        Updates the model based on the given states, actions, and targets.
 
-        :param x: np.ndarray
-        :param y: np.ndarray
+        :param states: dict or list of dicts
+        :param actions: int or np.ndarray[int]
+        :param targets: np.ndarray
         """
         pass
 
@@ -45,5 +50,15 @@ class RegressionModel(ABC):
         Loads the state of the model from a dictionary.
 
         :param state_dict: dict
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def actions(self):
+        """
+        Returns the number of actions.
+
+        :return: int
         """
         pass

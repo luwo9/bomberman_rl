@@ -5,7 +5,7 @@ import numpy as np
 
 from abc import ABC, abstractmethod
 
-from .regression_models import RegressionModel
+from .regression_models import QRegressionModel
 from .training_memory import TrainingMemory
 from .samplers import Sampler
 from typing import Tuple
@@ -21,30 +21,30 @@ class QHandler(ABC):
     @abstractmethod
     def compute(self, state, action):
         """
-        Returns the Q-value of a state-action pair.
+        Returns the Q-value of a state for the given action(s).
 
-        :param state: dict
-        :param action: int or np.ndarray[int]
-        :return: float
+        :param state: dict or None
+        :param action: int or np.ndarray[int], shape (n_actions,)
+        :return: float or np.ndarray[float], shape (n_actions,)
         """
         pass
 
     @abstractmethod
     def new_step(self, state, action, reward, next_state):
         """
-        Updates the Q-value of a state-action pair based on the observed reward.
+        Inform the Q-handler about a new step in the game.
 
         :param state: dict
-        :param action: int or np.ndarray[int]
+        :param action: int
         :param reward: float
-        :param next_state: dict
+        :param next_state: dict or None
         """
         pass
 
     @abstractmethod
     def end_of_episode(self):
         """
-        Called at the end of each episode. Tells the Q-handler that the last update had no next state.
+        Called at the end of each episode. Tells the Q-handler that the episode has ended.
         """
         pass
 
@@ -83,7 +83,7 @@ class RegressionQHandler(QHandler):
     QHandler that uses a regression model to approximate the Q-function.
     """
 
-    def __init__(self, model: RegressionModel, memory: TrainingMemory, number_of_actions: int, updates_step: Tuple[int, int, Sampler], updates_episodes: Tuple[int, int, Sampler],
+    def __init__(self, model: QRegressionModel, memory: TrainingMemory, number_of_actions: int, updates_step: Tuple[int, int, Sampler], updates_episodes: Tuple[int, int, Sampler],
                  type: str = "k_step_temporal_difference", discount_factor: float = 0.9, k_step: int = 1):
         """
         Initializes the QHandler.
@@ -103,12 +103,12 @@ class RegressionQHandler(QHandler):
             raise ValueError(f"Unknown type: {type}")
         
         # Make model, memory, and actions available
-        self.model = model
-        self.discount_factor = discount_factor
+        self._model = model
+        self._discount_factor = discount_factor
         self.actions = np.arange(number_of_actions)
 
-        self.training_set = memory
-        self.training_set.set_discount(discount_factor)
+        self._training_set = memory
+        self._training_set.set_discount(discount_factor)
 
         # Get samplers and batch sizes and update frequencies for end of game and end of step
         self._train_every_steps = updates_step[0]
@@ -135,33 +135,33 @@ class RegressionQHandler(QHandler):
 
     def compute(self, state, action):
         """
-        Returns the Q-value of a state-action pair.
+        Returns the Q-value of a state for the given action(s).
 
-        :param state: dict
-        :param action: int or np.ndarray[int]
-        :return: float
+        :param state: dict or None
+        :param action: int or np.ndarray[int], shape (n_actions,)
+        :return: float or np.ndarray[float], shape (n_actions,)
         """
-        return self.model.predict(state, action)
+        return self._model.predict(state, action)
 
     def new_step(self, state, action, reward, next_state):
         """
-        Updates the Q-value of a state-action pair based on the observed reward.
+        Inform the Q-handler about a new step in the game.
 
         :param state: dict
         :param action: int
         :param reward: float
-        :param next_state: dict
+        :param next_state: dict or None
         """
-        self.training_set.update(state, action, reward, next_state)
+        self._training_set.update(state, action, reward, next_state)
         self._n_trained_steps += 1
         if self._n_trained_steps % self._train_every_steps == 0:
             self._update_regression_model(self._sampler_step, self._batch_size_step)
 
     def end_of_episode(self):
         """
-        Called at the end of each episode. Tells the Q-handler that the game has ended.
+        Called at the end of each episode. Tells the Q-handler that the episode has ended.
         """
-        self.training_set.new_episode()
+        self._training_set.new_episode()
         self._n_trained_episodes += 1
         if self._n_trained_episodes % self._train_every_episodes == 0:
             self._update_regression_model(self._sampler_episode, self._batch_size_episode)
@@ -174,15 +174,15 @@ class RegressionQHandler(QHandler):
         """
         # Include everything needed to reconstruct the QHandler, assuming the objects of the right classes are given
         state_dict = {
-            'model': self.model.state_dict(),
-            'training_set': self.training_set.state_dict(),
+            'model': self._model.state_dict(),
+            'training_set': self._training_set.state_dict(),
             'number_of_actions': len(self.actions),
             'updates_step': (self._train_every_steps, self._batch_size_step),
             'samplers_step': self._sampler_step.state_dict(),
             'updates_episodes': (self._train_every_episodes, self._batch_size_episode),
             'samplers_episodes': self._sampler_episode.state_dict(),
             'type': self._type,
-            'discount_factor': self.discount_factor,
+            'discount_factor': self._discount_factor,
             'k_step': self._k_step,
             'n_trained_steps': self._n_trained_steps,
             'n_trained_episodes': self._n_trained_episodes
@@ -195,37 +195,40 @@ class RegressionQHandler(QHandler):
         :param state_dict: dict
         """
         # Load everything needed to reconstruct the QHandler
-        self.model.load_state_dict(state_dict['model'])
-        self.training_set.load_state_dict(state_dict['training_set'])
+        self._model.load_state_dict(state_dict['model'])
+        self._training_set.load_state_dict(state_dict['training_set'])
         self.actions = np.arange(state_dict['number_of_actions'])
         self._train_every_steps, self._batch_size_step = state_dict['updates_step']
         self._sampler_step.load_state_dict(state_dict['samplers_step'])
         self._train_every_episodes, self._batch_size_episode = state_dict['updates_episodes']
         self._sampler_episode.load_state_dict(state_dict['samplers_episodes'])
         self._type = state_dict['type']
-        self.discount_factor = state_dict['discount_factor']
+        self._discount_factor = state_dict['discount_factor']
         self._k_step = state_dict['k_step']
         self._n_trained_steps = state_dict['n_trained_steps']
         self._n_trained_episodes = state_dict['n_trained_episodes']
 
     def _update_regression_model(self, sampler: Sampler, batch_size: int):
         """
-        Updates the regression model using a batch of samples from the training set.
+        Gets a batch of samples from the training set and updates the model.
+
+        :param sampler: Sampler
+        :param batch_size: int
         """
         valid_coordinates = self._get_valid_coordinates()
-        batch = sampler.sample(valid_coordinates, self.model, self.training_set, batch_size)
+        batch = sampler.sample(valid_coordinates, self._model, self._training_set, batch_size)
         target_Q_values = self._get_target_Q_values(batch)
-        actions = self.training_set.get_actions(batch)
-        states = self.training_set.get_states(batch)
-        self.model.update(states, actions, target_Q_values)
+        actions = self._training_set.get_actions(batch)
+        states = self._training_set.get_states(batch)
+        self._model.update(states, actions, target_Q_values)
 
     def _get_valid_coordinates(self):
         """
-        Returns the coordinates of the training set that are valid for sampling.
+        Returns the coordinates of the training set that are valid for sampling training data.
 
         :return: np.ndarray, shape (batch_size, 2)
         """
-        game_steps = self.training_set.number_of_steps
+        game_steps = self._training_set.number_of_steps
         # Since all methods only require some number of steps in the future, we can just track the number of steps n and then 0...n-1 steps are valid
 
         N_games = len(game_steps)
@@ -249,18 +252,18 @@ class RegressionQHandler(QHandler):
     
     def _SARSA(self, batch):
         """
-        Updates the model using the SARSA algorithm.
+        returns the targets for updating the model using the SARSA algorithm.
 
         :param batch: np.ndarray, shape (batch_size, 2)
 
         :return: np.ndarray, shape (batch_size,)
         """
-        rewards = self.training_set.get_rewards(batch)
+        rewards = self._training_set.get_rewards(batch)
         next_step_batch = batch + np.array([0, 1])
-        next_states = self.training_set.get_states(next_step_batch)
-        next_actions = self.training_set.get_actions(next_step_batch)
-        next_q_values = self.model.predict(next_states, next_actions)
-        target_Q_values = rewards + self.discount_factor * next_q_values
+        next_states = self._training_set.get_states(next_step_batch)
+        next_actions = self._training_set.get_actions(next_step_batch)
+        next_q_values = self._model.predict(next_states, next_actions)
+        target_Q_values = rewards + self._discount_factor * next_q_values
         return target_Q_values
     
     def _k_step_temporal_difference(self, batch):
@@ -273,28 +276,28 @@ class RegressionQHandler(QHandler):
         next_step_batch = batch
         target_Q_values = 0
         for k in range(self._k_step): # could be done more efficiently
-            rewards = self.training_set.get_rewards(next_step_batch)
-            target_Q_values += rewards * self.discount_factor ** k
+            rewards = self._training_set.get_rewards(next_step_batch)
+            target_Q_values += rewards * self._discount_factor ** k
             next_step_batch = next_step_batch + np.array([0, 1])
         
-        next_states = self.training_set.get_states(next_step_batch)
+        next_states = self._training_set.get_states(next_step_batch)
         all_actions = np.repeat(self.actions.reshape(1, -1), len(batch), axis=0)
-        next_q_values = self.model.predict(next_states, all_actions)
-        target_Q_values += self.discount_factor ** self._k_step * np.max(next_q_values, axis=1)
+        next_q_values = self._model.predict(next_states, all_actions)
+        target_Q_values += self._discount_factor ** self._k_step * np.max(next_q_values, axis=1)
         return target_Q_values
 
     def _monte_carlo(self, batch):
         """
-        Updates the model using the Monte Carlo algorithm.
+        Returns the target Q-values for a batch of samples using the Monte Carlo algorithm.
 
         :param batch: np.ndarray, shape (batch_size, 2)
         """
-        returns = self.training_set.get_returns(batch)
+        returns = self._training_set.get_returns(batch)
         return returns
     
     def _get_target_Q_values(self, batch):
         """
-        Returns the target Q-values for a batch of samples.
+        Returns the target Q-values for a batch of samples selecting the correct method based on the type.
 
         :param batch: np.ndarray, shape (batch_size, 2)
         """
