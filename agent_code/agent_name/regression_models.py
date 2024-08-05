@@ -254,7 +254,16 @@ class NeuralNetworkVectorQRM(QRegressionModel):
         states = self._transformer.transform(states, keep_bijection=keep_bijection)
         states = torch.tensor(states, dtype=torch.float32)
 
-        # shape: (batch_size, number_of_actions) (it is a vector model)
-        y = batched_nn_eval(self._neural_network, states, self._chunk_size, self._device)
+        # Handle terminal states
+        check_axis = tuple(range(1, states.ndim))
+        is_terminal = torch.isnan(states).all(dim=check_axis) # Maybe find some better way to handle this as nans can occur otherwise
+        non_terminal_states = states[~is_terminal]
 
-        return y
+        # shape: (batch_size, number_of_actions) (it is a vector model)
+        y_non_terminal = batched_nn_eval(self._neural_network, non_terminal_states, self._chunk_size, self._device)
+
+        # Handle terminal states
+        y_full = torch.zeros(len(states), y_non_terminal.shape[1])
+        y_full[~is_terminal] = y_non_terminal
+
+        return y_full
