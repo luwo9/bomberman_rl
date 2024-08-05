@@ -75,6 +75,11 @@ class AllFields(Transform):
         all_fields = np.zeros((num_states, N_FIELDS, self._width, self._height))
 
         for i, state in enumerate(states):
+            # For the terminal state, set to nan
+            if state is None:
+                all_fields[i][:] = np.nan
+                continue
+
             field = state['field']
             all_fields[i, 0, :, :] = field
 
