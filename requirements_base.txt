@@ -1,6 +1,6 @@
 # Requirements stated as always given in section "2 Setup"
 pygame
 tqdm
-numpy
+numpy==1.26.0
 scipy
 scikit-learn
