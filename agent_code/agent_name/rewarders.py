@@ -1,12 +1,11 @@
 """
 Code for computing (shaped) rewards.
 """
-
+from abc import ABC, abstractmethod
+from typing import List
 
 import numpy as np
 import events as e
-from abc import ABC, abstractmethod
-from typing import List
 
 class Rewarder(ABC):
     """
