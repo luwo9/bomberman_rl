@@ -1,7 +1,6 @@
 """
 Defines agents that do the Q-learning algorithm.
 """
-
 from abc import ABC, abstractmethod
 
 import numpy as np
