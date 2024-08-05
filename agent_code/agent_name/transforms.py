@@ -1,7 +1,6 @@
 """
 This file contains the transforms that are applied to the game state before e.g. feeding it into a lookup table or a neural network.
 """
-
 from abc import ABC, abstractmethod
 
 import numpy as np
