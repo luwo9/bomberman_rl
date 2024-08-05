@@ -1,12 +1,11 @@
 """
 Code for computing (shaped) rewards.
 """
-
+from abc import ABC, abstractmethod
+from typing import List
 
 import numpy as np
 import events as e
-from abc import ABC, abstractmethod
-from typing import List
 
 class Rewarder(ABC):
     """
@@ -47,15 +46,13 @@ class SimpleRewarder(Rewarder):
     Simple test rewarder
     """
 
-    def __init__(self):
-        self.placeholder_event = "PLACEHOLDER"
 
     def compute_reward_from_events(self, events: List[str]) -> int:
         #events rewards similar to the template in tpl_agent, modify those for testing
         game_rewards = {
         e.COIN_COLLECTED: 1,
         e.KILLED_OPPONENT: 5,
-        self.placeholder_event: -.1  # idea: the custom event is bad
+        #insert further rewards 
         }
 
         reward_sum = 0
