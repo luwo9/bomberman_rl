@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from typing import List
 
 import numpy as np
+
 import events as e
 
 class Rewarder(ABC):

@@ -1,10 +1,14 @@
 """
 Contains different regression models that can be used to approximate the Q-function.
 """
-
 from abc import ABC, abstractmethod
 
 import numpy as np
+import torch
+import torch.nn as nn
+import torch.optim as optim
+
+from .transforms import Transform
 
 # This should maybe be reworked to be a wrapper arround a regression model, that only knows about x and y, prediction and loss (?)
 # It will hold on to a transformer in any case
@@ -21,6 +25,14 @@ class QRegressionModel(ABC):
         :param states: dict or list of dicts
         :param actions: int or np.ndarray[int]
         :return: np.ndarray
+
+        .. Note::
+            Different input formats are supported for convenience. If states is a dict, actions can be int or np.ndarray[int].
+            In case of int the Q-value for that action is returned. In case of np.ndarray[int] the Q-values for all actions are returned.
+            If states is a list of dicts, actions must be an np.ndarray[int]. The array length must be the same as the number of states.
+            If the array is 1D an array of pairwise Q-values is returned. Otherwise a list of 1D arrays must be given, where each array contains the actions for the corresponding state.
+            A list is then returned with the Q-values for each state.
+            Also a 2D array can be given, if the actions for all states are of equal length. In this case a 2D array is returned with the Q-values for all states.
         """
         pass
 
@@ -32,6 +44,9 @@ class QRegressionModel(ABC):
         :param states: dict or list of dicts
         :param actions: int or np.ndarray[int]
         :param targets: np.ndarray
+
+        .. Note::
+            See predict for the input formats. However, several actions per state are not supported.
         """
         pass
 
@@ -62,3 +77,193 @@ class QRegressionModel(ABC):
         :return: int
         """
         pass
+
+
+def batched_nn_eval(neural_network, x, batch_size, eval_device):
+    """
+    Evaluates the neural network in batches. The main purpose is to avoid gpu memory errors.
+
+    :param neural_network: callable
+    :param x: torch.Tensor
+    :param batch_size: int, batch size the neural network should be evaluated with
+    :param eval_device: str, device on which to evaluate the neural network
+    """
+    # This should be safe to use for gradient computation
+    y = torch.zeros_like(x)
+    loader = torch.utils.data.DataLoader(x, batch_size=batch_size)
+    idx_at = 0
+    for batch in loader:
+        batch = batch.to(device=eval_device)
+        y[idx_at:idx_at + len(batch)] = neural_network(batch).to(device=x.device)
+        idx_at += len(batch)
+    return y
+
+
+class NeuralNetworkVectorQRM(QRegressionModel):
+    """
+    Uses a neural network to approximate the Q-function.
+    It uses the 'vector' approach, where the input is the state and the ouput is a vector of Q-values for each action.
+    """
+
+    def __init__(self, neural_network: nn.Module, transformer: Transform, loss_function: nn.Module, optimizer: optim.Optimizer, number_of_actions: int,
+                  device: str, chunk_size: int = 10**7, lr_scheduler: optim.lr_scheduler.LRScheduler = None):
+        """
+        Initialize the model.
+
+        :param neural_network: torch.nn.Module
+        :param transformer: Transform
+        :param loss_function: torch.nn.Module
+        :param optimizer: torch.optim.Optimizer
+        :param number_of_actions: int
+        :param device: str
+        :param chunk_size: int, default: 10**7, maximum number of points that can be evaluated at once
+
+        """
+        self._neural_network = neural_network
+        self._transformer = transformer
+
+        self._loss_function = loss_function
+        self._optimizer = optimizer
+        self._lr_scheduler = lr_scheduler
+
+        self._device = device
+        self._chunk_size = chunk_size
+
+        self._actions = np.arange(number_of_actions)
+
+        self._neural_network.to(device=device)
+
+    def predict(self, states, actions):
+        """
+        Predicts the value of the Q-function for the given states and actions.
+
+        :param states: dict or list of dicts
+        :param actions: int or np.ndarray[int]
+        :return: np.ndarray
+
+        .. Note::
+            Different input formats are supported for convenience. If states is a dict, actions can be int or np.ndarray[int].
+            In case of int the Q-value for that action is returned. In case of np.ndarray[int] the Q-values for all actions are returned.
+            If states is a list of dicts, actions must be an np.ndarray[int]. The array length must be the same as the number of states.
+            If the array is 1D an array of pairwise Q-values is returned. Otherwise a list of 1D arrays must be given, where each array contains the actions for the corresponding state.
+            A list is then returned with the Q-values for each state.
+            Also a 2D array can be given, if the actions for all states are of equal length. In this case a 2D array is returned with the Q-values for all states.
+        """
+        with torch.inference_mode():
+            all_Q = self._compute_Q(states)
+        
+        # Match the input format
+        if isinstance(states, dict):
+            if isinstance(actions, int):
+                return all_Q[0, actions].item()
+            return all_Q[0, actions].numpy()
+        
+        if isinstance(actions, list):
+            all_Q = all_Q.numpy()
+            out = [all_Q[i, actions_i] for i, actions_i in enumerate(actions)]
+            return out
+        
+        actions = torch.tensor(actions, dtype=torch.int64)
+        return torch.gather(all_Q, 1, actions.reshape(-1, 1)).squeeze().numpy()
+    
+    def update(self, states, actions, targets):
+        """
+        Updates the model based on the given states, actions, and targets.
+
+        :param states: dict or list of dicts
+        :param actions: int or np.ndarray[int]
+        :param targets: np.ndarray
+
+        .. Note::
+        See predict for the input formats. However, several actions per state are not supported.
+        """
+        actions = torch.tensor(actions, dtype=torch.int64)
+        targets = torch.tensor(targets, dtype=torch.float32)
+        targets = targets.reshape(-1, 1)
+
+        # Predict and Compute the loss
+        all_Q = self._compute_Q(states)
+        q_s_a = torch.gather(all_Q, 1, actions.reshape(-1, 1))
+        loss = self._loss_function(q_s_a, targets)
+
+        # Optimize the model
+        self._optimizer.zero_grad()
+        loss.backward()
+        self._optimizer.step()
+        if self._lr_scheduler is not None:
+            self._lr_scheduler.step()
+
+
+    def state_dict(self):
+        """
+        Returns the state of the model as a dictionary.
+
+        :return: dict
+        """
+        return {
+            'neural_network': self._neural_network.state_dict(),
+            'optimizer': self._optimizer.state_dict(),
+            'transformer': self._transformer.state_dict(),
+            'lr_scheduler': self._lr_scheduler.state_dict() if self._lr_scheduler is not None else None,
+            'device': self._device,
+            'chunk_size': self._chunk_size,
+            'num_actions': len(self._actions)
+        }
+    
+    def load_state_dict(self, state_dict):
+        """
+        Loads the state of the model from a dictionary.
+
+        :param state_dict: dict
+        """
+        self._neural_network.load_state_dict(state_dict['neural_network'])
+        self._optimizer.load_state_dict(state_dict['optimizer'])
+        self._transformer.load_state_dict(state_dict['transformer'])
+        self._device = state_dict['device']
+        self._chunk_size = state_dict['chunk_size']
+        self._actions = np.arange(state_dict['num_actions'])
+        if state_dict['lr_scheduler'] is not None:
+            self._lr_scheduler.load_state_dict(state_dict['lr_scheduler'])
+        else:
+            self._lr_scheduler = None
+
+    @property
+    def actions(self):
+        """
+        Returns the actions.
+
+        :return: int
+        """
+        return self._actions
+
+    def _compute_Q(self, states, keep_bijection=True):
+        """
+        Predicts the value of the Q-function for the given states for all actions.
+
+        :param states: dict or list of dicts
+        :param actions: int or np.ndarray[int]
+        :keep_bijection: bool, default: True, as passed to the transformer
+        :return: np.ndarray
+
+        .. Note::
+            
+        """
+        if isinstance(states, dict):
+            states = [states]
+            
+        states = self._transformer.transform(states, keep_bijection=keep_bijection)
+        states = torch.tensor(states, dtype=torch.float32)
+
+        # Handle terminal states
+        check_axis = tuple(range(1, states.ndim))
+        is_terminal = torch.isnan(states).all(dim=check_axis) # Maybe find some better way to handle this as nans can occur otherwise
+        non_terminal_states = states[~is_terminal]
+
+        # shape: (batch_size, number_of_actions) (it is a vector model)
+        y_non_terminal = batched_nn_eval(self._neural_network, non_terminal_states, self._chunk_size, self._device)
+
+        # Handle terminal states
+        y_full = torch.zeros(len(states), y_non_terminal.shape[1])
+        y_full[~is_terminal] = y_non_terminal
+
+        return y_full

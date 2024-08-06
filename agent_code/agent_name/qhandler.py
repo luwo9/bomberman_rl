@@ -1,9 +1,9 @@
 """
 This file contains Implementations of the QHandler class. It is responsible for handling the Q-table/function.
 """
-import numpy as np
-
 from abc import ABC, abstractmethod
+
+import numpy as np
 
 from .regression_models import QRegressionModel
 from .training_memory import TrainingMemory
@@ -105,7 +105,7 @@ class RegressionQHandler(QHandler):
         # Make model, memory, and actions available
         self._model = model
         self._discount_factor = discount_factor
-        self.actions = np.arange(number_of_actions)
+        self._actions = np.arange(number_of_actions)
 
         self._training_set = memory
         self._training_set.set_discount(discount_factor)
@@ -176,7 +176,7 @@ class RegressionQHandler(QHandler):
         state_dict = {
             'model': self._model.state_dict(),
             'training_set': self._training_set.state_dict(),
-            'number_of_actions': len(self.actions),
+            'number_of_actions': len(self._actions),
             'updates_step': (self._train_every_steps, self._batch_size_step),
             'samplers_step': self._sampler_step.state_dict(),
             'updates_episodes': (self._train_every_episodes, self._batch_size_episode),
@@ -197,7 +197,7 @@ class RegressionQHandler(QHandler):
         # Load everything needed to reconstruct the QHandler
         self._model.load_state_dict(state_dict['model'])
         self._training_set.load_state_dict(state_dict['training_set'])
-        self.actions = np.arange(state_dict['number_of_actions'])
+        self._actions = np.arange(state_dict['number_of_actions'])
         self._train_every_steps, self._batch_size_step = state_dict['updates_step']
         self._sampler_step.load_state_dict(state_dict['samplers_step'])
         self._train_every_episodes, self._batch_size_episode = state_dict['updates_episodes']
@@ -207,6 +207,15 @@ class RegressionQHandler(QHandler):
         self._k_step = state_dict['k_step']
         self._n_trained_steps = state_dict['n_trained_steps']
         self._n_trained_episodes = state_dict['n_trained_episodes']
+
+    @property
+    def actions(self):
+        """
+        Returns the actions that the agent can take.
+
+        :return: np.ndarray
+        """
+        return self._actions
 
     def _update_regression_model(self, sampler: Sampler, batch_size: int):
         """
@@ -281,7 +290,7 @@ class RegressionQHandler(QHandler):
             next_step_batch = next_step_batch + np.array([0, 1])
         
         next_states = self._training_set.get_states(next_step_batch)
-        all_actions = np.repeat(self.actions.reshape(1, -1), len(batch), axis=0)
+        all_actions = np.repeat(self._actions.reshape(1, -1), len(batch), axis=0)
         next_q_values = self._model.predict(next_states, all_actions)
         target_Q_values += self._discount_factor ** self._k_step * np.max(next_q_values, axis=1)
         return target_Q_values
