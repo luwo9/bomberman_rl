@@ -3,10 +3,10 @@ from . import bombermans
 
 def setup(self):
     model: bombermans.VectorMLPSimple
-    if os.path.exists("msaved-model.pt"):
-        model = bombermans.load("saved-model.pt")
+    if os.path.exists("saved-model.pt"):
+        model = bombermans.VectorMLPSimple.load("saved-model.pt", self.train)
     else:
-        model = bombermans.VectorMLPSimple()
+        model = bombermans.VectorMLPSimple(self.train)
 
     self.model = model
 

@@ -60,7 +60,7 @@ class SimpleRewarder(Rewarder):
         for event in events:
             if event in game_rewards:
                 reward_sum += game_rewards[event]
-        self.logger.info(f"Awarded {reward_sum} for events {', '.join(events)}")
+        # self.logger.info(f"Awarded {reward_sum} for events {', '.join(events)}")
         return reward_sum
     
     def state_dict(self):

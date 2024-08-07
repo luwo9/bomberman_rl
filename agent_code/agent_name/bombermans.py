@@ -1,6 +1,7 @@
 """
 Contains classes that package together a QAgent with all it's necessary components.
 """
+from __future__ import annotations
 from abc import ABC, abstractmethod
 import pickle
 
@@ -8,16 +9,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-# import rewarders
-# import qagents
-# import policy_modifiers
-# import qhandler
-# import regression_models
-# import networks
-# import transforms
-# import training_memory
-# import samplers
-#With from .:
 from . import rewarders
 from . import qagents
 from . import policy_modifiers
@@ -41,6 +32,8 @@ ACTINS_MAP = {
     5: 'BOMB'
 }
 
+ACTIONS_INV_MAP = {v: k for k, v in ACTINS_MAP.items()}
+
 
 class BombermanBundle(ABC):
     """
@@ -48,6 +41,14 @@ class BombermanBundle(ABC):
 
     Subclasses should bundle together all components and must construct a QLearningAgent and a Rewarder that are then used to play the game.
     """
+
+    def __init__(self, training: bool = False):
+        """
+        Initializes all components.
+
+        :param training: bool, optional (default=False), whether the agent is used for training or playing
+        """
+        self._training_mode = training
 
     @property
     @abstractmethod
@@ -76,7 +77,7 @@ class BombermanBundle(ABC):
         :param game_state: dict
         :return: str
         """
-        return ACTINS_MAP[self._q_agent.get_action(game_state)]
+        return ACTINS_MAP[self._q_agent.get_action(game_state, self._training_mode)]
     
     def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_state: dict|None, events: list):
         """
@@ -87,6 +88,7 @@ class BombermanBundle(ABC):
         :param new_game_state: dict
         :param events: list
         """
+        self_action = ACTIONS_INV_MAP[self_action]
         reward = self._rewarder.compute_reward_from_events(events)
         self._q_agent.update(old_game_state, self_action, reward, new_game_state)
 
@@ -100,17 +102,18 @@ class BombermanBundle(ABC):
             pickle.dump(self._state_dict(), f)
 
     @classmethod
-    def load(cls, path: str):
+    def load(cls, path: str, training: bool = False) -> BombermanBundle:
         """
         Loads the agent from a file.
 
         :param path: str
+        :param training: bool, optional (default=False), whether the agent is used for training or playing
         :return: BombermanBundle
         """
         with open(path, 'rb') as f:
             state_dict = pickle.load(f)
         
-        agent = cls()
+        agent = cls(training)
         agent._load_state_dict(state_dict)
         return agent
     
@@ -146,13 +149,16 @@ class VectorMLPSimple(BombermanBundle):
     - Simple rewards
     """
 
-    def __init__(self):
+    def __init__(self, training: bool = False):
         """
         Initializes all components.
+
+        :param training: bool, optional (default=False), whether the agent is used for training or playing
         """
+        super().__init__(training)
 
         # Exploration and exploitation
-        ex_ex_handler = policy_modifiers.EpsilonGreedy(0.1)
+        ex_ex_handler = policy_modifiers.EpsilonGreedy(0.3)
 
         # Q-handler
 
