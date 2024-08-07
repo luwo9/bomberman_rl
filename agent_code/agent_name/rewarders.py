@@ -41,6 +41,97 @@ class Rewarder(ABC):
         """
         pass
 
+    #additional methods computing proximity to other bombs/agents could be added, moving in the same place, surviving bomb explosion, ... (additional input to current event inoput is necessary for this)
+
+class TemplateRewarder(Rewarder):
+    """
+    Collection of possible rewards and how they are scaled
+    """
+
+    def compute_reward_from_events(self, events: List[str]) -> int:
+        game_rewards = {
+            e.SURVIVED_ROUND: 0.5,  #difference to (not) got killed?
+            e.COIN_COLLECTED: 2,
+            e.OPPONENT_ELIMINATED: 4,
+            e.KILLED_OPPONENT: 40,
+
+            e.GOT_KILLED: -20,
+            e.KILLED_SELF: -40,
+            
+            e.CRATE_DESTROYED: 0, #combine with coin_found
+            e.COIN_FOUND: 0,
+            e.BOMB_DROPPED: 0, #combine negatively with nobody killed and positively with crate_destroyed and coin_found - currently not possible because enemy doesn't die in same timestep
+            #winning the game still missing, needs to be in event input
+        }
+
+        reward_sum = 0
+        for event in events:
+            if event in game_rewards:
+                reward_sum += game_rewards[event]
+            #simple example for combining events so that they do not count on their own
+            if (e.CRATE_DESTROYED in events) & (e.COIN_FOUND in events):
+                    reward_sum += 1
+        self.logger.info(f"Awarded {reward_sum} for events {', '.join(events)}")
+        return reward_sum
+    
+    def state_dict(self):
+        """
+        Returns the state of the rewarder as a dictionary.
+
+        :return: dict
+        """
+        return {}
+    
+    def load_state_dict(self, state_dict):
+        """
+        Loads the state of the rewarder from a dictionary.
+
+        :param state_dict: dict
+        """
+        pass
+
+class CoinCollectRewarder(Rewarder):
+    """
+    Collection of possible rewards and how they are scaled
+    """
+
+    def compute_reward_from_events(self, events: List[str]) -> int:
+        game_rewards = {
+            e.SURVIVED_ROUND: 0.5,
+            e.COIN_COLLECTED: 2,
+            
+            e.GOT_KILLED: -20,
+            e.KILLED_SELF: -40,
+            
+            
+        }
+
+        reward_sum = 0
+        for event in events:
+            if event in game_rewards:
+                reward_sum += game_rewards[event]
+        self.logger.info(f"Awarded {reward_sum} for events {', '.join(events)}")
+        return reward_sum
+    
+    def state_dict(self):
+        """
+        Returns the state of the rewarder as a dictionary.
+
+        :return: dict
+        """
+        return {}
+    
+    def load_state_dict(self, state_dict):
+        """
+        Loads the state of the rewarder from a dictionary.
+
+        :param state_dict: dict
+        """
+        pass
+    
+
+
+
 
 class SimpleRewarder(Rewarder):
     """
@@ -51,9 +142,10 @@ class SimpleRewarder(Rewarder):
     def compute_reward_from_events(self, events: List[str]) -> int:
         #events rewards similar to the template in tpl_agent, modify those for testing
         game_rewards = {
-        e.COIN_COLLECTED: 1,
-        e.KILLED_OPPONENT: 5,
-        #insert further rewards 
+            e.COIN_COLLECTED: 1,
+            e.KILLED_OPPONENT: 5,
+            
+            #insert further rewards 
         }
 
         reward_sum = 0
