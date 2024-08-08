@@ -187,6 +187,7 @@ class RegressionQHandler(QHandler):
             'n_trained_steps': self._n_trained_steps,
             'n_trained_episodes': self._n_trained_episodes
         }
+        return state_dict
 
     def load_state_dict(self, state_dict):
         """

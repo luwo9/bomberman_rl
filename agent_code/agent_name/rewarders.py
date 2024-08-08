@@ -148,9 +148,8 @@ class SimpleRewarder(Rewarder):
         
         reward_sum = 0
         for event in events:
-            if event in self.game_rewards:
-                reward_sum += self.game_rewards[event]
-        self.logger.info(f"Awarded {reward_sum} for events {', '.join(events)}")
+            if event in game_rewards:
+                reward_sum += game_rewards[event]
         return reward_sum
     
     def state_dict(self):
