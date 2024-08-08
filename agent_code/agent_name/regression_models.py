@@ -89,18 +89,23 @@ def batched_nn_eval(neural_network, x, batch_size, eval_device):
     :param eval_device: str, device on which to evaluate the neural network
     """
     # This should be safe to use for gradient computation
-    loader = torch.utils.data.DataLoader(x, batch_size=batch_size)
+    if len(x) <= batch_size:
+        return neural_network(x.to(device=eval_device)).to(device=x.device)
+    
+    batches = torch.split(x, batch_size)
     idx_at = 0
-    for i, batch in enumerate(loader):
+    for i, batch in enumerate(batches):
+
         batch = batch.to(device=eval_device)
         out = neural_network(batch).to(device=x.device)
 
         # Allow for lazy determination of the output shape
-        if i == 0: 
+        if i == 0:
             y = torch.zeros(len(x), *out.shape[1:], device=x.device)
 
         y[idx_at:idx_at + len(batch)] = out
         idx_at += len(batch)
+
     return y
 
 
