@@ -21,9 +21,9 @@ class TrainingMemory:
         """
         self.capacity = capacity
         self._memory = deque(maxlen=capacity) #[] # List of games
-        self.new_episode()
-        self._first_step = True
+        
         self._first_episode = True
+        self.new_episode()
         
         self._discount_was_set = False
 
@@ -69,7 +69,7 @@ class TrainingMemory:
             self._discount_was_set = True
         else:
             # Update all returns
-            for i in range(len(self._memory)):
+            for i in range(len(self._memory)-1):
                 self._compute_returns(i)
 
     def _compute_and_store_returns(self):
@@ -163,6 +163,7 @@ class TrainingMemory:
         self.capacity = state_dict["capacity"]
         self._memory = state_dict['memory']
         self._first_step = state_dict['first_step']
+        self._discount_was_set = False # To avoid updating the returns in the memory buffer
         self.set_discount(state_dict['discount'])
 
     

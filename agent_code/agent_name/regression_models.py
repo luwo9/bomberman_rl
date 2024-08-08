@@ -89,12 +89,17 @@ def batched_nn_eval(neural_network, x, batch_size, eval_device):
     :param eval_device: str, device on which to evaluate the neural network
     """
     # This should be safe to use for gradient computation
-    y = torch.zeros_like(x)
     loader = torch.utils.data.DataLoader(x, batch_size=batch_size)
     idx_at = 0
-    for batch in loader:
+    for i, batch in enumerate(loader):
         batch = batch.to(device=eval_device)
-        y[idx_at:idx_at + len(batch)] = neural_network(batch).to(device=x.device)
+        out = neural_network(batch).to(device=x.device)
+
+        # Allow for lazy determination of the output shape
+        if i == 0: 
+            y = torch.zeros(len(x), *out.shape[1:], device=x.device)
+
+        y[idx_at:idx_at + len(batch)] = out
         idx_at += len(batch)
     return y
 
@@ -164,7 +169,9 @@ class NeuralNetworkVectorQRM(QRegressionModel):
             return out
         
         actions = torch.tensor(actions, dtype=torch.int64)
-        return torch.gather(all_Q, 1, actions.reshape(-1, 1)).squeeze().numpy()
+        if actions.ndim == 1:
+            actions = actions.unsqueeze(1)
+        return torch.gather(all_Q, 1, actions).squeeze().numpy()
     
     def update(self, states, actions, targets):
         """
