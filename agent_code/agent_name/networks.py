@@ -59,10 +59,16 @@ def compute_convolution_output_size(H, W, kernel_size, stride, padding, dilation
     :param W: int
     :param kernel_size: int
     :param stride: int
-    :param padding: int
+    :param padding: int or str
     :param dilation: int
     :return: tuple[int]
     """
+    if padding == "same":
+        return H, W
+    
+    if padding == "valid":
+        padding = 0
+
     if isinstance(kernel_size, int):
         kernel_size = (kernel_size, kernel_size)
         stride = (stride, stride)
@@ -107,8 +113,10 @@ class SimpleCNN(nn.Module):
         for kernel_size, padding, in_channels, out_channels in zip(kernel_sizes, paddings, channels, channels_out):
             if H is not None:
                 H, W = compute_convolution_output_size(H, W, kernel_size, stride=1, padding=padding, dilation=1)
+                H, W = H // 2, W // 2
             self._layers.append(nn.Conv2d(in_channels, out_channels, kernel_size, padding=padding))
             self._layers.append(nn.ReLU())
+            self._layers.append(nn.MaxPool2d(kernel_size=2))
 
         self._out_size = (H, W, channels_out[-1])
 
@@ -131,21 +139,21 @@ class SimpleCNN(nn.Module):
     def output_size(self):
         return self._out_size
     
-    def state_dict(self):
+    def state_dict(self, *args, **kwargs):
         """
         Returns the state of the model as a dictionary.
 
         :return: dict
         """
-        super_dict = super().state_dict()
+        super_dict = super().state_dict(*args, **kwargs)
         super_dict["paddings"] = self._paddings
         return super_dict
     
-    def load_state_dict(self, state_dict):
+    def load_state_dict(self, state_dict, *args, **kwargs):
         """
         Loads the state of the model from a dictionary.
 
         :param state_dict: dict
         """
         self._paddings = state_dict.pop("paddings")
-        super().load_state_dict(state_dict)
+        super().load_state_dict(state_dict, *args, **kwargs)
