@@ -202,7 +202,8 @@ class VectorMLPSimple(BombermanBundle):
         self._loss = nn.SmoothL1Loss()
         self._optimizer = optim.RAdam(self._neural_net.parameters(), lr=0.0001)
 
-        self._regression_model = regression_models.NeuralNetworkVectorQRM(self._neural_net, self._transformer, self._loss, self._optimizer, N_ACTIONS, "cpu")
+        device_use = "cuda" if torch.cuda.is_available() else "cpu"
+        self._regression_model = regression_models.NeuralNetworkVectorQRM(self._neural_net, self._transformer, self._loss, self._optimizer, N_ACTIONS, device_use)
 
         self._training_memory_use = training_memory.TrainingMemory(100)
 
@@ -214,7 +215,7 @@ class VectorMLPSimple(BombermanBundle):
         self._q_handler = qhandler.RegressionQHandler(self._regression_model, self._training_memory_use, N_ACTIONS, sample_step, sample_round)
 
         # Q Agent
-        self._q_agent_ = qagents.SimpleQLearningAgent(self._q_handler, self._ex_ex_handler)
+        self._q_agent_ = qagents.SimpleQLearningAgent(self._q_handler, self._ex_ex_handler, N_ACTIONS)
 
         # Rewarder
         self._rewarder_ = rewarders.SimpleRewarder()
