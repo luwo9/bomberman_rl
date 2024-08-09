@@ -28,9 +28,12 @@ SCENARIOS = {
     },
     "super-coin-heaven": {
         "CRATE_DENSITY": 0,
-        "COIN_COUNT": 80}
-    # Feel free to add more game modes and properties
-    # game is created in environment.py -> BombeRLeWorld -> build_arena()
+        "COIN_COUNT": 80
+    },
+    "mini-coin-heaven": {
+        "CRATE_DENSITY": 0,
+        "COIN_COUNT": 20
+    },
 }
 MAX_AGENTS = 4
 
