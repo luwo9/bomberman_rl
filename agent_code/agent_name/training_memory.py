@@ -151,7 +151,6 @@ class TrainingMemory:
             'memory': self._memory,
             'first_step': self._first_step,
             'discount': self._discount,
-            "capacity": self.capacity
         }
     
     def load_state_dict(self, state_dict):
@@ -159,8 +158,7 @@ class TrainingMemory:
         Loads the state of the memory buffer from a dictionary.
 
         :param state_dict: dict
-        """
-        self.capacity = state_dict["capacity"]
+        """ 
         self._memory = state_dict['memory']
         self._first_step = state_dict['first_step']
         self._discount_was_set = False # To avoid updating the returns in the memory buffer

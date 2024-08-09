@@ -75,7 +75,7 @@ class EpsilonGreedy(ExplorationExploitationHandler):
 
         :return: dict
         """
-        return {"epsilon": self._epsilon}
+        return {}
 
     def load_state_dict(self, state_dict):
         """
@@ -83,4 +83,4 @@ class EpsilonGreedy(ExplorationExploitationHandler):
 
         :param state_dict: dict
         """
-        self._epsilon = state_dict["epsilon"]
+        pass

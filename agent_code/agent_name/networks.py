@@ -1,8 +1,6 @@
 """
 Contains different neural network architectures that can be used to approximate the Q-function.
 """
-import itertools
-from typing import Mapping
 from typing import Tuple
 
 import torch
@@ -138,22 +136,3 @@ class SimpleCNN(nn.Module):
     @property
     def output_size(self):
         return self._out_size
-    
-    def state_dict(self, *args, **kwargs):
-        """
-        Returns the state of the model as a dictionary.
-
-        :return: dict
-        """
-        super_dict = super().state_dict(*args, **kwargs)
-        super_dict["paddings"] = self._paddings
-        return super_dict
-    
-    def load_state_dict(self, state_dict, *args, **kwargs):
-        """
-        Loads the state of the model from a dictionary.
-
-        :param state_dict: dict
-        """
-        self._paddings = state_dict.pop("paddings")
-        super().load_state_dict(state_dict, *args, **kwargs)

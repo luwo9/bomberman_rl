@@ -212,15 +212,7 @@ class NeuralNetworkVectorQRM(QRegressionModel):
 
         :return: dict
         """
-        return {
-            'neural_network': self._neural_network.state_dict(),
-            'optimizer': self._optimizer.state_dict(),
-            'transformer': self._transformer.state_dict(),
-            'lr_scheduler': self._lr_scheduler.state_dict() if self._lr_scheduler is not None else None,
-            'device': self._device,
-            'chunk_size': self._chunk_size,
-            'num_actions': len(self._actions)
-        }
+        return {}
     
     def load_state_dict(self, state_dict):
         """
@@ -228,16 +220,7 @@ class NeuralNetworkVectorQRM(QRegressionModel):
 
         :param state_dict: dict
         """
-        self._neural_network.load_state_dict(state_dict['neural_network'])
-        self._optimizer.load_state_dict(state_dict['optimizer'])
-        self._transformer.load_state_dict(state_dict['transformer'])
-        self._device = state_dict['device']
-        self._chunk_size = state_dict['chunk_size']
-        self._actions = np.arange(state_dict['num_actions'])
-        if state_dict['lr_scheduler'] is not None:
-            self._lr_scheduler.load_state_dict(state_dict['lr_scheduler'])
-        else:
-            self._lr_scheduler = None
+        pass
 
     @property
     def actions(self):
