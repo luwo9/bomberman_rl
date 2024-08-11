@@ -22,10 +22,6 @@ class NeuralNetwork(nn.Module):
         """
         super().__init__()
 
-        self.register_buffer('_input_size', torch.tensor(input_size))
-        self.register_buffer('_output_size', torch.tensor(output_size))
-        self.register_buffer('_hidden_sizes', torch.tensor(hidden_sizes, dtype=torch.int))
-
         self._layers = []
         for hidden_size in hidden_sizes:
             self._layers.append(nn.Linear(input_size, hidden_size))
@@ -94,11 +90,6 @@ class SimpleCNN(nn.Module):
         :param input_size: tuple of int, H x W if supplied the output size will be computed
         """
         super().__init__()
-
-        self.register_buffer('_kernel_sizes', torch.tensor(kernel_sizes, dtype=torch.int))
-        self._paddings = paddings # As this might be e.g. a string
-        self.register_buffer('_channels', torch.tensor(channels, dtype=torch.int))
-        self.register_buffer('_input_size', torch.tensor(input_size, dtype=torch.int) if input_size is not None else None)
 
         if input_size is not None:
             H, W = input_size
