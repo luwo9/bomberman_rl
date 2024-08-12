@@ -172,18 +172,7 @@ class RegressionQHandler(QHandler):
 
         :return: dict
         """
-        # Include everything needed to reconstruct the QHandler, assuming the objects of the right classes are given
         state_dict = {
-            'model': self._model.state_dict(),
-            'training_set': self._training_set.state_dict(),
-            'number_of_actions': len(self._actions),
-            'updates_step': (self._train_every_steps, self._batch_size_step),
-            'samplers_step': self._sampler_step.state_dict(),
-            'updates_episodes': (self._train_every_episodes, self._batch_size_episode),
-            'samplers_episodes': self._sampler_episode.state_dict(),
-            'type': self._type,
-            'discount_factor': self._discount_factor,
-            'k_step': self._k_step,
             'n_trained_steps': self._n_trained_steps,
             'n_trained_episodes': self._n_trained_episodes
         }
@@ -195,17 +184,6 @@ class RegressionQHandler(QHandler):
 
         :param state_dict: dict
         """
-        # Load everything needed to reconstruct the QHandler
-        self._model.load_state_dict(state_dict['model'])
-        self._training_set.load_state_dict(state_dict['training_set'])
-        self._actions = np.arange(state_dict['number_of_actions'])
-        self._train_every_steps, self._batch_size_step = state_dict['updates_step']
-        self._sampler_step.load_state_dict(state_dict['samplers_step'])
-        self._train_every_episodes, self._batch_size_episode = state_dict['updates_episodes']
-        self._sampler_episode.load_state_dict(state_dict['samplers_episodes'])
-        self._type = state_dict['type']
-        self._discount_factor = state_dict['discount_factor']
-        self._k_step = state_dict['k_step']
         self._n_trained_steps = state_dict['n_trained_steps']
         self._n_trained_episodes = state_dict['n_trained_episodes']
 

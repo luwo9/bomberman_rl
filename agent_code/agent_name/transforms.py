@@ -110,10 +110,7 @@ class AllFields(Transform):
 
         :return: dict
         """
-        return {
-            'width': self._width,
-            'height': self._height
-        }
+        return {}
     
     def load_state_dict(self, state_dict):
         """
@@ -121,8 +118,7 @@ class AllFields(Transform):
 
         :param state_dict: dict
         """
-        self._width = state_dict['width']
-        self._height = state_dict['height']
+        pass
 
 
 class AllfieldsFlat(AllFields):

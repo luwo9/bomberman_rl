@@ -61,7 +61,7 @@ class SimpleQLearningAgent(QLearningAgent):
     Standard general Q-learning agent.
     """
 
-    def __init__(self, Q_handler: QHandler, ex_ex_handler: ExplorationExploitationHandler):
+    def __init__(self, Q_handler: QHandler, ex_ex_handler: ExplorationExploitationHandler, n_actions: int):
         """
         Initialize the agent.
 
@@ -70,7 +70,7 @@ class SimpleQLearningAgent(QLearningAgent):
         """
         self._Q = Q_handler
         self._ex_ex_handler = ex_ex_handler
-        self.actions = Q_handler.actions
+        self.actions = np.arange(n_actions)
 
     def get_action(self, state, explore=False):
         """
@@ -106,10 +106,7 @@ class SimpleQLearningAgent(QLearningAgent):
 
         :return: dict
         """
-        return {
-            'Q': self._Q.state_dict(),
-            'ex_ex_handler': self._ex_ex_handler.state_dict()
-        }
+        return {}
     
     def load_state_dict(self, state_dict):
         """
@@ -117,8 +114,7 @@ class SimpleQLearningAgent(QLearningAgent):
 
         :param state_dict: dict
         """
-        self._Q.load_state_dict(state_dict['Q'])
-        self._ex_ex_handler.load_state_dict(state_dict['ex_ex_handler'])
+        pass
 
 
 

@@ -1,8 +1,6 @@
 """
 Contains different neural network architectures that can be used to approximate the Q-function.
 """
-import itertools
-from typing import Mapping
 from typing import Tuple
 
 import torch
@@ -23,10 +21,6 @@ class NeuralNetwork(nn.Module):
         :param output_size: int
         """
         super().__init__()
-
-        self.register_buffer('_input_size', torch.tensor(input_size))
-        self.register_buffer('_output_size', torch.tensor(output_size))
-        self.register_buffer('_hidden_sizes', torch.tensor(hidden_sizes, dtype=torch.int))
 
         self._layers = []
         for hidden_size in hidden_sizes:
@@ -97,11 +91,6 @@ class SimpleCNN(nn.Module):
         """
         super().__init__()
 
-        self.register_buffer('_kernel_sizes', torch.tensor(kernel_sizes, dtype=torch.int))
-        self._paddings = paddings # As this might be e.g. a string
-        self.register_buffer('_channels', torch.tensor(channels, dtype=torch.int))
-        self.register_buffer('_input_size', torch.tensor(input_size, dtype=torch.int) if input_size is not None else None)
-
         if input_size is not None:
             H, W = input_size
         else:
@@ -138,22 +127,3 @@ class SimpleCNN(nn.Module):
     @property
     def output_size(self):
         return self._out_size
-    
-    def state_dict(self, *args, **kwargs):
-        """
-        Returns the state of the model as a dictionary.
-
-        :return: dict
-        """
-        super_dict = super().state_dict(*args, **kwargs)
-        super_dict["paddings"] = self._paddings
-        return super_dict
-    
-    def load_state_dict(self, state_dict, *args, **kwargs):
-        """
-        Loads the state of the model from a dictionary.
-
-        :param state_dict: dict
-        """
-        self._paddings = state_dict.pop("paddings")
-        super().load_state_dict(state_dict, *args, **kwargs)
