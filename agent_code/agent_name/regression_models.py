@@ -333,8 +333,8 @@ class DoubleNeuralNetworkVectorQRM(DoubleQRegressionModel, NeuralNetworkVectorQR
         :return: dict
         """
         state_dict = super().state_dict()
+        # The inactive network is safed, as it is an internal state and thus the responsibility of this class
         state_dict['inactive_neural_network'] = self._inactive_neural_network.state_dict()
-        state_dict['tau'] = self._tau
         return state_dict
     
     def load_state_dict(self, state_dict):
@@ -345,4 +345,3 @@ class DoubleNeuralNetworkVectorQRM(DoubleQRegressionModel, NeuralNetworkVectorQR
         """
         super().load_state_dict(state_dict)
         self._inactive_neural_network.load_state_dict(state_dict['inactive_neural_network'])
-        self._tau = state_dict['tau']
