@@ -179,6 +179,20 @@ def main(argv = None):
                      gui=gui, every_step=every_step, turn_based=args.turn_based,
                      make_video=args.make_video, update_interval=args.update_interval)
 
+# Imports etc. kept here to seperate from the original code
+DO_PROFILING = True
+if DO_PROFILING:
+    import cProfile
+    import pstats
 
 if __name__ == '__main__':
-    main()
+    if DO_PROFILING:
+        with cProfile.Profile() as pr:
+            main()
+    else:
+        main()
+
+    if DO_PROFILING:
+        stats = pstats.Stats(pr)
+        stats.sort_stats(pstats.SortKey.TIME)
+        stats.dump_stats("main.prof")
