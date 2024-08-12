@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 
-from .regression_models import QRegressionModel
+from .regression_models import QRegressionModel, DoubleQRegressionModel
 from .training_memory import TrainingMemory
 from .samplers import Sampler
 from typing import Tuple
@@ -290,3 +290,41 @@ class RegressionQHandler(QHandler):
         :param batch: np.ndarray, shape (batch_size, 2)
         """
         return self._type_map[self._type](batch)
+    
+
+class DoubleRegressionQHandler(RegressionQHandler):
+    """
+    Same as RegressionQHandler, but has two seperate networks for policy and target.
+    """
+
+    def __init__(self, model: DoubleQRegressionModel, memory: TrainingMemory, number_of_actions: int, updates_step: Tuple[int, int, Sampler], updates_episodes: Tuple[int, int, Sampler],
+                 type: str = "k_step_temporal_difference", discount_factor: float = 0.9, k_step: int = 1, target_update_frequency: int = 30):
+        """
+        Initializes the QHandler.
+
+        :param model: RegressionModel
+        :param memory: TrainingMemory
+        :param number_of_actions: int
+        :param updates_step: Tuple[int, int, Sampler], (update_every, batch_size, sampler) for updating the model at the end of each step
+        :param updates_episodes: Tuple[int, int, Sampler], (update_every, batch_size, sampler for updating the model at the end of each episode
+        :param type: str, type of Q-learning algorithm, one of ["monte_carlo", "k_step_temporal_difference", "SARSA"]
+        :param discount_factor: float, discount factor for future rewards
+        :param k_step: int, number of steps to look into the future for the k-step temporal difference algorithm
+        :param target_update_frequency: int, how many policy updates are done before the target network is updated
+        """
+        super().__init__(model, memory, number_of_actions, updates_step, updates_episodes, type, discount_factor, k_step)
+        self._target_update_frequency = target_update_frequency
+        self._n_target_updates = 0
+        self._model: DoubleQRegressionModel
+
+    def _get_target_Q_values(self, *args, **kwargs):
+        self._model.switch()
+        target_Q_values = super()._get_target_Q_values(*args, **kwargs)
+        self._model.switch()
+        return target_Q_values
+    
+    def _update_regression_model(self, *args, **kwargs):
+        self._n_target_updates += 1
+        super()._update_regression_model(*args, **kwargs)
+        if self._n_target_updates % self._target_update_frequency == 0:
+            self._model.sync()
