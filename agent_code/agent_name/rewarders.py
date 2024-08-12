@@ -158,3 +158,39 @@ class SimpleRewarder(Rewarder):
         :param state_dict: dict
         """
         pass
+
+
+class CoinsSurvives(Rewarder):
+    """
+    Collection of possible rewards and how they are scaled
+    """
+    def __init__(self) -> None:
+        self._game_rewards = {
+            e.SURVIVED_ROUND: 0.2,
+            e.COIN_COLLECTED: 2,
+            e.NO_COIN: -0.4,
+
+            e.WAITED: -0.1,
+            
+            e.KILLED_SELF: -8,
+        }
+    
+    @property
+    def _rewards_map(self):
+        return self._game_rewards
+    
+    def state_dict(self):
+        """
+        Returns the state of the rewarder as a dictionary.
+
+        :return: dict
+        """
+        return {}
+    
+    def load_state_dict(self, state_dict):
+        """
+        Loads the state of the rewarder from a dictionary.
+
+        :param state_dict: dict
+        """
+        pass
