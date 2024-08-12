@@ -339,19 +339,14 @@ class DoubleRegressionQHandler(RegressionQHandler):
         self._n_target_updates = 0
         self._model: DoubleQRegressionModel
 
-    def _get_target_Q_values(self, batch):
-        """
-        Returns the target Q-values for a batch of samples using the Double Q-learning algorithm.
-
-        :param batch: np.ndarray, shape (batch_size, 2)
-        """
+    def _get_target_Q_values(self, *args, **kwargs):
         self._model.switch()
-        target_Q_values = super()._get_target_Q_values(batch)
+        target_Q_values = super()._get_target_Q_values(*args, **kwargs)
         self._model.switch()
         return target_Q_values
     
-    def _update_regression_model(self, sampler: Sampler, batch_size: int):
+    def _update_regression_model(self, *args, **kwargs):
         self._n_target_updates += 1
-        super()._update_regression_model(sampler, batch_size)
+        super()._update_regression_model(*args, **kwargs)
         if self._n_target_updates % self._target_update_frequency == 0:
             self._model.sync()
