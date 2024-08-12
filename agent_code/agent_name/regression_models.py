@@ -2,6 +2,7 @@
 Contains different regression models that can be used to approximate the Q-function.
 """
 from abc import ABC, abstractmethod
+import copy
 
 import numpy as np
 import torch
@@ -75,6 +76,26 @@ class QRegressionModel(ABC):
         Returns the number of actions.
 
         :return: int
+        """
+        pass
+
+
+class DoubleQRegressionModel(QRegressionModel):
+    """
+    Uses two different Q-function regression models internally.
+    """
+
+    @abstractmethod
+    def switch(self):
+        """
+        Switches between the active and inactive model.
+        """
+        pass
+    
+    @abstractmethod
+    def sync(self):
+        """
+        Synchronizes/updates the inactive model with the active model.
         """
         pass
 
@@ -279,3 +300,66 @@ class NeuralNetworkVectorQRM(QRegressionModel):
         y_full[~is_terminal] = y_non_terminal
 
         return y_full
+    
+
+class DoubleNeuralNetworkVectorQRM(DoubleQRegressionModel, NeuralNetworkVectorQRM):
+    """
+    Same as NeuralNetworkVectorQRM, but uses two neural networks internally, see DoubleQRegressionModel.
+    """
+
+    def __init__(self, neural_network: nn.Module, transformer: Transform, loss_function: nn.Module, optimizer: optim.Optimizer, number_of_actions: int,
+                  device: str, chunk_size: int = 10**7, lr_scheduler: optim.lr_scheduler.LRScheduler = None, tau: float = 1):
+        """
+        Initialize the model.
+
+        :param neural_network1: torch.nn.Module
+        :param transformer: Transform
+        :param loss_function: torch.nn.Module
+        :param optimizer: torch.optim.Optimizer
+        :param number_of_actions: int
+        :param device: str
+        :param chunk_size: int, default: 10**7, maximum number of points that can be evaluated at once
+
+        """
+        super().__init__(neural_network, transformer, loss_function, optimizer, number_of_actions, device, chunk_size, lr_scheduler)
+        self._tau = tau
+        # Copy the neural network
+        self._inactive_neural_network = copy.deepcopy(neural_network)
+
+    def switch(self):
+        """
+        Switches between the active and inactive model.
+        """
+        self._neural_network, self._inactive_neural_network = self._inactive_neural_network, self._neural_network
+
+    def sync(self):
+        """
+        Synchronizes/updates the inactive model with the active model.
+        """
+        # Soft update
+        inactive_state_dict = self._inactive_neural_network.state_dict()
+        active_state_dict = self._neural_network.state_dict()
+        for key in active_state_dict:
+            inactive_state_dict[key] = self._tau * active_state_dict[key] + (1 - self._tau) * inactive_state_dict[key]
+        self._inactive_neural_network.load_state_dict(inactive_state_dict)
+
+    def state_dict(self):
+        """
+        Returns the state of the model as a dictionary.
+
+        :return: dict
+        """
+        state_dict = super().state_dict()
+        state_dict['inactive_neural_network'] = self._inactive_neural_network.state_dict()
+        state_dict['tau'] = self._tau
+        return state_dict
+    
+    def load_state_dict(self, state_dict):
+        """
+        Loads the state of the model from a dictionary.
+
+        :param state_dict: dict
+        """
+        super().load_state_dict(state_dict)
+        self._inactive_neural_network.load_state_dict(state_dict['inactive_neural_network'])
+        self._tau = state_dict['tau']
