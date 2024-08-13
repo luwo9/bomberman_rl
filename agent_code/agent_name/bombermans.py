@@ -192,7 +192,7 @@ class VectorMLPSimple(BombermanBundle):
         super().__init__()
 
         # Exploration and exploitation
-        self._ex_ex_handler = policy_modifiers.EpsilonGreedy(0.3)
+        self._ex_ex_handler = policy_modifiers.EpsilonGreedy(0.2)
 
         # Q-handler
 
@@ -203,22 +203,22 @@ class VectorMLPSimple(BombermanBundle):
         self._optimizer = optim.RAdam(self._neural_net.parameters(), lr=0.0001)
 
         device_use = "cuda" if torch.cuda.is_available() else "cpu"
-        self._regression_model = regression_models.NeuralNetworkVectorQRM(self._neural_net, self._transformer, self._loss, self._optimizer, N_ACTIONS, device_use)
+        self._regression_model = regression_models.DoubleNeuralNetworkVectorQRM(self._neural_net, self._transformer, self._loss, self._optimizer, N_ACTIONS, device_use, tau=0.05)
 
-        self._training_memory_use = training_memory.TrainingMemory(100)
+        self._training_memory_use = training_memory.TrainingMemory(400)
 
         self._sampler = samplers.RandomSampler()
 
         sample_step = (3, 64, self._sampler)
         sample_round = (1, 256, self._sampler)
 
-        self._q_handler = qhandler.RegressionQHandler(self._regression_model, self._training_memory_use, N_ACTIONS, sample_step, sample_round)
+        self._q_handler = qhandler.DoubleRegressionQHandler(self._regression_model, self._training_memory_use, N_ACTIONS, sample_step, sample_round, discount_factor=0.95, target_update_frequency=10)
 
         # Q Agent
         self._q_agent_ = qagents.SimpleQLearningAgent(self._q_handler, self._ex_ex_handler, N_ACTIONS)
 
         # Rewarder
-        self._rewarder_ = rewarders.SimpleRewarder()
+        self._rewarder_ = rewarders.CoinsSurvives()
 
     @property
     def _q_agent(self) -> qagents.QLearningAgent:
