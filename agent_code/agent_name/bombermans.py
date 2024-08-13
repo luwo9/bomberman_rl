@@ -180,14 +180,11 @@ class VectorMLPSimple(BombermanBundle):
     - MLP
     - Epsilon greedy
     - Random sampling
-    - Simple rewards
     """
 
-    def __init__(self, training: bool = False):
+    def __init__(self):
         """
         Initializes all components.
-
-        :param training: bool, optional (default=False), whether the agent is used for training or playing
         """
         super().__init__()
 
