@@ -12,8 +12,6 @@ def ask_questions():
     else:
         name = "saved-model"
 
-    name += ".pt"
-
     if ASK_FOR_NEW_RUN:
         new_run = input("Is this a new run? (y/n): ").lower()
         if new_run == "y":
@@ -32,8 +30,16 @@ def ask_questions():
 
     return name, new_run, type_
 
+def make_filepath(name):
+    return "../../models/" + name + ".pt"
+
+
+# Callbacks
+
+
 def setup(self):
-    file_name, new_run, class_ = ask_questions()
+    name, new_run, class_ = ask_questions()
+    file_name = make_filepath(name)
     model: bombermans.BombermanBundle = class_()
     
     if os.path.exists(file_name):
@@ -44,6 +50,7 @@ def setup(self):
     
     self.model = model
     self.file_name = file_name
+    self.name = name
 
 
 def act(self, game_state: dict):

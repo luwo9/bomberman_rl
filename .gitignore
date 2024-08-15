@@ -104,7 +104,7 @@ venv.bak/
 .mypy_cache/
 
 .idea
-/models
+/models/*.pt
 screenshots/*.png
 screenshots/*.mp4
 screenshots/*.webm
