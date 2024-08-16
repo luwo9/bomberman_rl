@@ -204,6 +204,8 @@ class RegressionQHandler(QHandler):
         :param batch_size: int
         """
         valid_coordinates = self._get_valid_coordinates()
+        if len(valid_coordinates) == 0:
+            return
         batch = sampler.sample(valid_coordinates, self._model, self._training_set, batch_size)
         target_Q_values = self._get_target_Q_values(batch)
         actions = self._training_set.get_actions(batch)
