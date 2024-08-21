@@ -30,6 +30,8 @@ class EventMaker:
         :return: list[str]
         """
 
+        events = events.copy() # To avoid any side effects
+
         # General calculations
 
 
