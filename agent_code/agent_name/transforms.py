@@ -104,6 +104,42 @@ class AllFields(Transform):
 
         return all_fields
     
+    def augment_fields_and_actions(self, all_fields, actions):
+
+        new_shape_fields = (8,) + all_fields.shape
+        augmented_fields = np.empty(new_shape_fields)
+
+        augmented_fields[0] = all_fields
+        augmented_fields[1] = np.array([np.flip(matrix, axis=0) for matrix in all_fields])
+        augmented_fields[2] = np.array([np.rot90(matrix, k=1) for matrix in all_fields])
+        augmented_fields[3] = np.array([np.rot90(matrix, k=2) for matrix in all_fields])
+        augmented_fields[4] = np.array([np.rot90(matrix, k=3) for matrix in all_fields])
+        augmented_fields[5] = np.array([np.flip(np.rot90(matrix, k=1), axis=0) for matrix in all_fields])
+        augmented_fields[6] = np.array([np.flip(np.rot90(matrix, k=2), axis=0) for matrix in all_fields])
+        augmented_fields[7] = np.array([np.flip(np.rot90(matrix, k=3), axis=0) for matrix in all_fields])
+
+
+        augmented_actions = np.tile(actions, (8, 1))
+
+        augmented_actions[0] = actions
+        augmented_actions[1] = np.where(augmented_actions[1] == 0, 2, np.where(augmented_actions[1] == 2, 0, augmented_actions[1]))
+        augmented_actions[2][augmented_actions[2]<4]+=1
+        augmented_actions[2][augmented_actions[2]<4]%4
+        augmented_actions[3][augmented_actions[3]<4]+=2
+        augmented_actions[3][augmented_actions[3]<4]%4
+        augmented_actions[4][augmented_actions[4]<4]+=3
+        augmented_actions[4][augmented_actions[4]<4]%4
+        augmented_actions[5] = np.where(augmented_actions[5] == 0, 1, np.where(augmented_actions[5] == 1, 0, augmented_actions[5]))
+        augmented_actions[5] = np.where(augmented_actions[5] == 2, 3, np.where(augmented_actions[5] == 3, 2, augmented_actions[5]))
+        augmented_actions[6] = np.where(augmented_actions[6] == 1, 3, np.where(augmented_actions[6] == 3, 1, augmented_actions[6]))
+        augmented_actions[7] = np.where(augmented_actions[7] == 1, 2, np.where(augmented_actions[7] == 2, 1, augmented_actions[7]))
+        augmented_actions[7] = np.where(augmented_actions[7] == 3, 0, np.where(augmented_actions[7] == 0, 3, augmented_actions[7]))
+
+
+
+        
+
+
     def state_dict(self):
         """
         Returns the state of the transform as a dictionary.
