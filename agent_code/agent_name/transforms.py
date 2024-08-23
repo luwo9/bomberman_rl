@@ -5,6 +5,14 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 
+from .bombermans import ACTIONS_INV_MAP
+
+UP = ACTIONS_INV_MAP['UP']
+RIGHT = ACTIONS_INV_MAP['RIGHT']
+DOWN = ACTIONS_INV_MAP['DOWN']
+LEFT = ACTIONS_INV_MAP['LEFT']
+
+
 class Transform(ABC):
     """
     Abstract base class for transforms.
@@ -52,6 +60,109 @@ class Transform(ABC):
 
     def __call__(self, state):
         return self.transform(state)
+    
+
+def augment_fields(fields):
+        """
+        Augments image-like fields to states that are equivalent.
+
+        .. note:: Returns 4 rotations (counter-clockwise) and 4 reflections (vertical axis, horizontal axis, matrix diagonal, anti-diagonal) in this order.
+
+        :param fields: np.ndarray (Assumes shape (..., width, height))
+        :return: np.ndarray
+        """
+
+        # Augment by using the dihedral group of the square
+        # Contains 4 rotations and 4 reflections
+
+        # Note: The code below could be optimized
+        # (flips and transpositions seem faster than rot90
+        # by using group theory one could find a more efficient way to obtain all elements)
+        # but this is not a bottleneck for now and the difference is small
+        new_shape_fields = (8,) + fields.shape
+        augmented_fields = np.empty(new_shape_fields)
+
+        # Rotations:
+        augmented_fields[0] = fields
+        augmented_fields[1] = np.rot90(fields, k=1, axes=(-2,-1))
+        rot180 = np.rot90(fields, k=2, axes=(-2,-1))
+        augmented_fields[2] = rot180
+        augmented_fields[3] = np.rot90(fields, k=3, axes=(-2,-1))
+
+        # Flips
+        augmented_fields[4] = np.flip(fields, axis=-1)
+        augmented_fields[5] = np.flip(fields, axis=-2)
+        # Diagonal flip: Transpose and anti-transpose
+        augmented_fields[6] = np.swapaxes(fields, -2, -1)
+        augmented_fields[7] = np.swapaxes(rot180, -2, -1)
+
+        return augmented_fields
+
+
+def augment_actions(actions):
+        """
+        Augments the actions to actions that are equivalent.
+
+        .. note:: Returns 4 rotations (counter-clockwise) and 4 reflections (vertical axis, horizontal axis, matrix diagonal, anti-diagonal) in this order.
+
+        :param actions: np.ndarray, shape (n,)
+        :return: np.ndarray
+        """
+        # Augment by using the dihedral group of the square
+        # Contains 4 rotations and 4 reflections
+
+        # The implementation below is not perfectly efficient (and somewhat codeheavy)
+        # But its failsafe-ness and readability should be worth it
+        # (+small performance difference, not a bottleneck)
+
+        augmented_actions = np.tile(actions, (8, 1))
+
+        # Masks for the different actions
+        mask_up = actions == UP
+        mask_right = actions == RIGHT
+        mask_down = actions == DOWN
+        mask_left = actions == LEFT
+
+        # Rotations
+        # Identity is already done
+        # Rotate in mathematically positive direction (counter-clockwise)
+        augmented_actions[1][mask_up] = LEFT
+        augmented_actions[1][mask_right] = UP
+        augmented_actions[1][mask_down] = RIGHT
+        augmented_actions[1][mask_left] = DOWN
+
+        augmented_actions[2][mask_up] = DOWN
+        augmented_actions[2][mask_right] = LEFT
+        augmented_actions[2][mask_down] = UP
+        augmented_actions[2][mask_left] = RIGHT
+
+        augmented_actions[3][mask_up] = RIGHT
+        augmented_actions[3][mask_right] = DOWN
+        augmented_actions[3][mask_down] = LEFT
+        augmented_actions[3][mask_left] = UP
+
+        # Flips
+        # Along vertical axis
+        augmented_actions[4][mask_right] = LEFT
+        augmented_actions[4][mask_left] = RIGHT
+
+        # Along horizontal axis
+        augmented_actions[5][mask_up] = DOWN
+        augmented_actions[5][mask_down] = UP
+
+        # Along diagonal
+        augmented_actions[6][mask_up] = LEFT
+        augmented_actions[6][mask_left] = UP
+        augmented_actions[6][mask_right] = DOWN
+        augmented_actions[6][mask_down] = RIGHT
+
+        # Along anti-diagonal
+        augmented_actions[7][mask_up] = RIGHT
+        augmented_actions[7][mask_right] = UP
+        augmented_actions[7][mask_left] = DOWN
+        augmented_actions[7][mask_down] = LEFT
+        
+        return augmented_actions
     
 
 class AllFields(Transform):
@@ -123,39 +234,10 @@ class AllFields(Transform):
         :return: np.ndarray, np.ndarray
         """
 
-        new_shape_fields = (8,) + transformed_states.shape
-        augmented_fields = np.empty(new_shape_fields)
+        augmented_states = augment_fields(transformed_states)
+        augmented_actions = augment_actions(actions)
 
-        augmented_fields[0] = transformed_states
-        augmented_fields[1] = np.array([np.flip(matrix, axis=0) for matrix in transformed_states])
-        augmented_fields[2] = np.array([np.rot90(matrix, k=1) for matrix in transformed_states])
-        augmented_fields[3] = np.array([np.rot90(matrix, k=2) for matrix in transformed_states])
-        augmented_fields[4] = np.array([np.rot90(matrix, k=3) for matrix in transformed_states])
-        augmented_fields[5] = np.array([np.flip(np.rot90(matrix, k=1), axis=0) for matrix in transformed_states])
-        augmented_fields[6] = np.array([np.flip(np.rot90(matrix, k=2), axis=0) for matrix in transformed_states])
-        augmented_fields[7] = np.array([np.flip(np.rot90(matrix, k=3), axis=0) for matrix in transformed_states])
-
-
-        augmented_actions = np.tile(actions, (8, 1))
-
-        augmented_actions[0] = actions
-        augmented_actions[1] = np.where(augmented_actions[1] == 0, 2, np.where(augmented_actions[1] == 2, 0, augmented_actions[1]))
-        augmented_actions[2][augmented_actions[2]<4]+=1
-        augmented_actions[2][augmented_actions[2]<4]%4
-        augmented_actions[3][augmented_actions[3]<4]+=2
-        augmented_actions[3][augmented_actions[3]<4]%4
-        augmented_actions[4][augmented_actions[4]<4]+=3
-        augmented_actions[4][augmented_actions[4]<4]%4
-        augmented_actions[5] = np.where(augmented_actions[5] == 0, 1, np.where(augmented_actions[5] == 1, 0, augmented_actions[5]))
-        augmented_actions[5] = np.where(augmented_actions[5] == 2, 3, np.where(augmented_actions[5] == 3, 2, augmented_actions[5]))
-        augmented_actions[6] = np.where(augmented_actions[6] == 1, 3, np.where(augmented_actions[6] == 3, 1, augmented_actions[6]))
-        augmented_actions[7] = np.where(augmented_actions[7] == 1, 2, np.where(augmented_actions[7] == 2, 1, augmented_actions[7]))
-        augmented_actions[7] = np.where(augmented_actions[7] == 3, 0, np.where(augmented_actions[7] == 0, 3, augmented_actions[7]))
-
-
-
-        
-
+        return augmented_states, augmented_actions
 
     def state_dict(self):
         """
