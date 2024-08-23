@@ -252,13 +252,12 @@ class NeuralNetworkVectorQRM(QRegressionModel):
         """
         return self._actions
 
-    def _compute_Q(self, states, keep_bijection=True):
+    def _compute_Q(self, states):
         """
         Predicts the value of the Q-function for the given states for all actions.
 
         :param states: dict or list of dicts
         :param actions: int or np.ndarray[int]
-        :keep_bijection: bool, default: True, as passed to the transformer
         :return: np.ndarray
 
         .. Note::
@@ -267,7 +266,7 @@ class NeuralNetworkVectorQRM(QRegressionModel):
         if isinstance(states, dict):
             states = [states]
             
-        states = self._transformer.transform(states, keep_bijection=keep_bijection)
+        states = self._transformer.transform(states)
         states = torch.tensor(states, dtype=torch.float32)
 
         # Handle terminal states

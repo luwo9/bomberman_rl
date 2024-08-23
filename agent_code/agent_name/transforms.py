@@ -11,13 +11,11 @@ class Transform(ABC):
     """
 
     @abstractmethod
-    def transform(self, states, keep_bijection=True):
+    def transform(self, states):
         """
         Transforms the state.
 
         :param state: list of dicts
-        :param keep_bijection: bool, if True the transform simply retain the one-to-one mapping between states and transformed states,
-        if False the transform can change the number of states (e.g. augmenting the data)
         :return: np.ndarray
         """
         pass
@@ -59,13 +57,11 @@ class AllFields(Transform):
         self._width = width
         self._height = height
 
-    def transform(self, states, keep_bijection=True):
+    def transform(self, states):
         """
         Transforms the state.
 
         :param state: list of dicts
-        :param keep_bijection: bool, if True the transform simply retain the one-to-one mapping between states and transformed states,
-        if False the transform can change the number of states (e.g. augmenting the data)
         :return: np.ndarray
         """
         num_states = len(states)
@@ -162,14 +158,12 @@ class AllfieldsFlat(AllFields):
     Transforms all data into a flat format.
     """
 
-    def transform(self, states, keep_bijection=True):
+    def transform(self, states):
         """
         Transforms the state.
 
         :param state: list of dicts
-        :param keep_bijection: bool, if True the transform simply retain the one-to-one mapping between states and transformed states,
-        if False the transform can change the number of states (e.g. augmenting the data)
         :return: np.ndarray
         """
-        all_fields = super().transform(states, keep_bijection)
+        all_fields = super().transform(states)
         return all_fields.reshape(all_fields.shape[0], -1)
