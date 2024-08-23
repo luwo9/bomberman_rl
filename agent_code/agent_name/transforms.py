@@ -269,4 +269,21 @@ class AllfieldsFlat(AllFields):
         :return: np.ndarray
         """
         all_fields = super().transform(states)
+        self._field_shape = all_fields.shape[1:]
         return all_fields.reshape(all_fields.shape[0], -1)
+
+    def augment(self, transformed_states, actions):
+        """
+        Augments the transformed states and actions.
+
+        Returns two numpy arrays (states, actions) where a new, 0th axis is the augmentation axis.
+
+        :param transformed_states: np.ndarray
+        :param actions: np.ndarray
+        :return: np.ndarray, np.ndarray
+        """
+        # Reshape back to original shape
+        transformed_states = transformed_states.reshape(-1, *self._field_shape)
+        augmented_fields, augmented_actions =  super().augment(transformed_states, actions)
+        augmented_flat =  augmented_fields.reshape(augmented_fields.shape[0], augmented_fields.shape[1], -1)
+        return augmented_flat, augmented_actions    
