@@ -20,6 +20,18 @@ class Transform(ABC):
         """
         pass
 
+    def augment(self, transformed_states, actions):
+        """
+        Augments the transformed states and actions.
+
+        Returns two numpy arrays (states, actions) where a new, 0th axis is the augmentation axis.
+
+        :param transformed_states: np.ndarray
+        :param actions: np.ndarray
+        :return: np.ndarray, np.ndarray
+        """
+        return transformed_states.reshape(1, *transformed_states.shape), actions.reshape(1, *actions.shape) # Just identity as default
+
     @abstractmethod
     def state_dict(self):
         """
@@ -100,19 +112,28 @@ class AllFields(Transform):
 
         return all_fields
     
-    def augment_fields_and_actions(self, all_fields, actions):
+    def augment(self, transformed_states, actions):
+        """
+        Augments the transformed states and actions.
 
-        new_shape_fields = (8,) + all_fields.shape
+        Returns two numpy arrays (states, actions) where a new, 0th axis is the augmentation axis.
+
+        :param transformed_states: np.ndarray
+        :param actions: np.ndarray
+        :return: np.ndarray, np.ndarray
+        """
+
+        new_shape_fields = (8,) + transformed_states.shape
         augmented_fields = np.empty(new_shape_fields)
 
-        augmented_fields[0] = all_fields
-        augmented_fields[1] = np.array([np.flip(matrix, axis=0) for matrix in all_fields])
-        augmented_fields[2] = np.array([np.rot90(matrix, k=1) for matrix in all_fields])
-        augmented_fields[3] = np.array([np.rot90(matrix, k=2) for matrix in all_fields])
-        augmented_fields[4] = np.array([np.rot90(matrix, k=3) for matrix in all_fields])
-        augmented_fields[5] = np.array([np.flip(np.rot90(matrix, k=1), axis=0) for matrix in all_fields])
-        augmented_fields[6] = np.array([np.flip(np.rot90(matrix, k=2), axis=0) for matrix in all_fields])
-        augmented_fields[7] = np.array([np.flip(np.rot90(matrix, k=3), axis=0) for matrix in all_fields])
+        augmented_fields[0] = transformed_states
+        augmented_fields[1] = np.array([np.flip(matrix, axis=0) for matrix in transformed_states])
+        augmented_fields[2] = np.array([np.rot90(matrix, k=1) for matrix in transformed_states])
+        augmented_fields[3] = np.array([np.rot90(matrix, k=2) for matrix in transformed_states])
+        augmented_fields[4] = np.array([np.rot90(matrix, k=3) for matrix in transformed_states])
+        augmented_fields[5] = np.array([np.flip(np.rot90(matrix, k=1), axis=0) for matrix in transformed_states])
+        augmented_fields[6] = np.array([np.flip(np.rot90(matrix, k=2), axis=0) for matrix in transformed_states])
+        augmented_fields[7] = np.array([np.flip(np.rot90(matrix, k=3), axis=0) for matrix in transformed_states])
 
 
         augmented_actions = np.tile(actions, (8, 1))
