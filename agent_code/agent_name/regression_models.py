@@ -108,6 +108,7 @@ def batched_nn_eval(neural_network, x, batch_size, eval_device):
     :param x: torch.Tensor
     :param batch_size: int, batch size the neural network should be evaluated with
     :param eval_device: str, device on which to evaluate the neural network
+    :return: torch.Tensor
     """
     # This should be safe to use for gradient computation
     if len(x) <= batch_size:
@@ -180,11 +181,15 @@ class NeuralNetworkVectorQRM(QRegressionModel):
             A list is then returned with the Q-values for each state.
             Also a 2D array can be given, if the actions for all states are of equal length. In this case a 2D array is returned with the Q-values for all states.
         """
+
+        is_single_state = isinstance(states, dict)
+        states = self._transform_states(states)
+        
         with torch.inference_mode():
             all_Q = self._compute_Q(states)
         
         # Match the input format
-        if isinstance(states, dict):
+        if is_single_state:
             if isinstance(actions, int):
                 return all_Q[0, actions].item()
             return all_Q[0, actions].numpy()
@@ -210,6 +215,18 @@ class NeuralNetworkVectorQRM(QRegressionModel):
         .. Note::
         See predict for the input formats. However, several actions per state are not supported.
         """
+        states = self._transform_states(states)
+        actions = np.atleast_1d(actions)
+        
+        # Do augmentations
+        states, actions = self._transformer.augment(states, actions)
+        n_augmentations = len(states)
+        state_shape = states.shape[2:]
+        states = states.reshape(-1, *state_shape)
+        actions = actions.flatten()
+        # Repeat targets for each augmentation
+        targets = np.tile(targets, n_augmentations)
+
         actions = torch.tensor(actions, dtype=torch.int64)
         targets = torch.tensor(targets, dtype=torch.float32)
         targets = targets.reshape(-1, 1)
@@ -225,7 +242,6 @@ class NeuralNetworkVectorQRM(QRegressionModel):
         self._optimizer.step()
         if self._lr_scheduler is not None:
             self._lr_scheduler.step()
-
 
     def state_dict(self):
         """
@@ -251,22 +267,28 @@ class NeuralNetworkVectorQRM(QRegressionModel):
         :return: int
         """
         return self._actions
+    
+    def _transform_states(self, states):
+        """
+        Processes the states using the transformer.
+
+        :param states: dict or list of dicts
+        :return: np.ndarray
+        """
+        is_single_state = isinstance(states, dict)
+        if is_single_state:
+            states = [states]
+
+        states = self._transformer.transform(states)
+        return states
 
     def _compute_Q(self, states):
         """
         Predicts the value of the Q-function for the given states for all actions.
 
-        :param states: dict or list of dicts
-        :param actions: int or np.ndarray[int]
-        :return: np.ndarray
-
-        .. Note::
-            
+        :param states: np.ndarray
+        :return: torch.Tensor
         """
-        if isinstance(states, dict):
-            states = [states]
-            
-        states = self._transformer.transform(states)
         states = torch.tensor(states, dtype=torch.float32)
 
         # Handle terminal states
@@ -342,5 +364,6 @@ class DoubleNeuralNetworkVectorQRM(DoubleQRegressionModel, NeuralNetworkVectorQR
 
         :param state_dict: dict
         """
+        inactive_state_dict = state_dict.pop('inactive_neural_network')
         super().load_state_dict(state_dict)
-        self._inactive_neural_network.load_state_dict(state_dict['inactive_neural_network'])
+        self._inactive_neural_network.load_state_dict(inactive_state_dict)
