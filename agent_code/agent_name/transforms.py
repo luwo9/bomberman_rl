@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 
-from .Qsettings import ACTIONS_INV_MAP
+from .qsettings import ACTIONS_INV_MAP
 
 UP = ACTIONS_INV_MAP['UP']
 RIGHT = ACTIONS_INV_MAP['RIGHT']

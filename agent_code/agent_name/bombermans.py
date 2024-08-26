@@ -19,7 +19,7 @@ from . import transforms
 from . import training_memory
 from . import samplers
 from settings import COLS as WIDTH, ROWS as HEIGHT
-from .Qsettings import N_ACTIONS, ACTIONS_MAP, ACTIONS_INV_MAP
+from .qsettings import N_ACTIONS, ACTIONS_MAP, ACTIONS_INV_MAP
 
 
 class BombermanBundle(ABC):
