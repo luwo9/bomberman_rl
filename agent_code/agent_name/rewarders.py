@@ -166,13 +166,13 @@ class CoinsSurvives(Rewarder):
     """
     def __init__(self) -> None:
         self._game_rewards = {
-            e.SURVIVED_ROUND: 0.2,
             e.COIN_COLLECTED: 2,
-            e.NO_COIN: -0.4,
+            e.NO_COIN: -2,
+            e.INVALID_ACTION: -0.8,
 
             e.WAITED: -0.1,
             
-            e.KILLED_SELF: -8,
+            e.KILLED_SELF: -10,
         }
     
     @property
