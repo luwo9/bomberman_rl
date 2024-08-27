@@ -5,22 +5,40 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 
+from .qsettings import ACTIONS_INV_MAP
+
+UP = ACTIONS_INV_MAP['UP']
+RIGHT = ACTIONS_INV_MAP['RIGHT']
+DOWN = ACTIONS_INV_MAP['DOWN']
+LEFT = ACTIONS_INV_MAP['LEFT']
+
+
 class Transform(ABC):
     """
     Abstract base class for transforms.
     """
 
     @abstractmethod
-    def transform(self, states, keep_bijection=True):
+    def transform(self, states):
         """
         Transforms the state.
 
         :param state: list of dicts
-        :param keep_bijection: bool, if True the transform simply retain the one-to-one mapping between states and transformed states,
-        if False the transform can change the number of states (e.g. augmenting the data)
         :return: np.ndarray
         """
         pass
+
+    def augment(self, transformed_states, actions):
+        """
+        Augments the transformed states and actions.
+
+        Returns two numpy arrays (states, actions) where a new, 0th axis is the augmentation axis.
+
+        :param transformed_states: np.ndarray
+        :param actions: np.ndarray
+        :return: np.ndarray, np.ndarray
+        """
+        return transformed_states.reshape(1, *transformed_states.shape), actions.reshape(1, *actions.shape) # Just identity as default
 
     @abstractmethod
     def state_dict(self):
@@ -44,6 +62,109 @@ class Transform(ABC):
         return self.transform(state)
     
 
+def augment_fields(fields):
+        """
+        Augments image-like fields to states that are equivalent.
+
+        .. note:: Returns 4 rotations (counter-clockwise) and 4 reflections (vertical axis, horizontal axis, matrix diagonal, anti-diagonal) in this order.
+
+        :param fields: np.ndarray (Assumes shape (..., width, height))
+        :return: np.ndarray
+        """
+
+        # Augment by using the dihedral group of the square
+        # Contains 4 rotations and 4 reflections
+
+        # Note: The code below could be optimized
+        # (flips and transpositions seem faster than rot90
+        # by using group theory one could find a more efficient way to obtain all elements)
+        # but this is not a bottleneck for now and the difference is small
+        new_shape_fields = (8,) + fields.shape
+        augmented_fields = np.empty(new_shape_fields)
+
+        # Rotations:
+        augmented_fields[0] = fields
+        augmented_fields[1] = np.rot90(fields, k=1, axes=(-2,-1))
+        rot180 = np.rot90(fields, k=2, axes=(-2,-1))
+        augmented_fields[2] = rot180
+        augmented_fields[3] = np.rot90(fields, k=3, axes=(-2,-1))
+
+        # Flips
+        augmented_fields[4] = np.flip(fields, axis=-1)
+        augmented_fields[5] = np.flip(fields, axis=-2)
+        # Diagonal flip: Transpose and anti-transpose
+        augmented_fields[6] = np.swapaxes(fields, -2, -1)
+        augmented_fields[7] = np.swapaxes(rot180, -2, -1)
+
+        return augmented_fields
+
+
+def augment_actions(actions):
+        """
+        Augments the actions to actions that are equivalent.
+
+        .. note:: Returns 4 rotations (counter-clockwise) and 4 reflections (vertical axis, horizontal axis, matrix diagonal, anti-diagonal) in this order.
+
+        :param actions: np.ndarray, shape (n,)
+        :return: np.ndarray
+        """
+        # Augment by using the dihedral group of the square
+        # Contains 4 rotations and 4 reflections
+
+        # The implementation below is not perfectly efficient (and somewhat codeheavy)
+        # But its failsafe-ness and readability should be worth it
+        # (+small performance difference, not a bottleneck)
+
+        augmented_actions = np.tile(actions, (8, 1))
+
+        # Masks for the different actions
+        mask_up = actions == UP
+        mask_right = actions == RIGHT
+        mask_down = actions == DOWN
+        mask_left = actions == LEFT
+
+        # Rotations
+        # Identity is already done
+        # Rotate in mathematically positive direction (counter-clockwise)
+        augmented_actions[1][mask_up] = LEFT
+        augmented_actions[1][mask_right] = UP
+        augmented_actions[1][mask_down] = RIGHT
+        augmented_actions[1][mask_left] = DOWN
+
+        augmented_actions[2][mask_up] = DOWN
+        augmented_actions[2][mask_right] = LEFT
+        augmented_actions[2][mask_down] = UP
+        augmented_actions[2][mask_left] = RIGHT
+
+        augmented_actions[3][mask_up] = RIGHT
+        augmented_actions[3][mask_right] = DOWN
+        augmented_actions[3][mask_down] = LEFT
+        augmented_actions[3][mask_left] = UP
+
+        # Flips
+        # Along vertical axis
+        augmented_actions[4][mask_right] = LEFT
+        augmented_actions[4][mask_left] = RIGHT
+
+        # Along horizontal axis
+        augmented_actions[5][mask_up] = DOWN
+        augmented_actions[5][mask_down] = UP
+
+        # Along diagonal
+        augmented_actions[6][mask_up] = LEFT
+        augmented_actions[6][mask_left] = UP
+        augmented_actions[6][mask_right] = DOWN
+        augmented_actions[6][mask_down] = RIGHT
+
+        # Along anti-diagonal
+        augmented_actions[7][mask_up] = RIGHT
+        augmented_actions[7][mask_right] = UP
+        augmented_actions[7][mask_left] = DOWN
+        augmented_actions[7][mask_down] = LEFT
+        
+        return augmented_actions
+    
+
 class AllFields(Transform):
     """
     Transforms all data into an image-like format.
@@ -59,13 +180,11 @@ class AllFields(Transform):
         self._width = width
         self._height = height
 
-    def transform(self, states, keep_bijection=True):
+    def transform(self, states):
         """
         Transforms the state.
 
         :param state: list of dicts
-        :param keep_bijection: bool, if True the transform simply retain the one-to-one mapping between states and transformed states,
-        if False the transform can change the number of states (e.g. augmenting the data)
         :return: np.ndarray
         """
         num_states = len(states)
@@ -104,6 +223,22 @@ class AllFields(Transform):
 
         return all_fields
     
+    def augment(self, transformed_states, actions):
+        """
+        Augments the transformed states and actions.
+
+        Returns two numpy arrays (states, actions) where a new, 0th axis is the augmentation axis.
+
+        :param transformed_states: np.ndarray
+        :param actions: np.ndarray
+        :return: np.ndarray, np.ndarray
+        """
+
+        augmented_states = augment_fields(transformed_states)
+        augmented_actions = augment_actions(actions)
+
+        return augmented_states, augmented_actions
+
     def state_dict(self):
         """
         Returns the state of the transform as a dictionary.
@@ -126,14 +261,29 @@ class AllfieldsFlat(AllFields):
     Transforms all data into a flat format.
     """
 
-    def transform(self, states, keep_bijection=True):
+    def transform(self, states):
         """
         Transforms the state.
 
         :param state: list of dicts
-        :param keep_bijection: bool, if True the transform simply retain the one-to-one mapping between states and transformed states,
-        if False the transform can change the number of states (e.g. augmenting the data)
         :return: np.ndarray
         """
-        all_fields = super().transform(states, keep_bijection)
+        all_fields = super().transform(states)
+        self._field_shape = all_fields.shape[1:]
         return all_fields.reshape(all_fields.shape[0], -1)
+
+    def augment(self, transformed_states, actions):
+        """
+        Augments the transformed states and actions.
+
+        Returns two numpy arrays (states, actions) where a new, 0th axis is the augmentation axis.
+
+        :param transformed_states: np.ndarray
+        :param actions: np.ndarray
+        :return: np.ndarray, np.ndarray
+        """
+        # Reshape back to original shape
+        transformed_states = transformed_states.reshape(-1, *self._field_shape)
+        augmented_fields, augmented_actions =  super().augment(transformed_states, actions)
+        augmented_flat =  augmented_fields.reshape(augmented_fields.shape[0], augmented_fields.shape[1], -1)
+        return augmented_flat, augmented_actions    
