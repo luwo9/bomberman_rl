@@ -8,6 +8,7 @@ import pickle
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import numpy as np
 
 from . import rewarders
 from . import qagents
@@ -180,19 +181,16 @@ class VectorMLPSimple(BombermanBundle):
     - MLP
     - Epsilon greedy
     - Random sampling
-    - Simple rewards
     """
 
-    def __init__(self, training: bool = False):
+    def __init__(self):
         """
         Initializes all components.
-
-        :param training: bool, optional (default=False), whether the agent is used for training or playing
         """
         super().__init__()
 
         # Exploration and exploitation
-        self._ex_ex_handler = policy_modifiers.EpsilonGreedy(0.3)
+        self._ex_ex_handler = policy_modifiers.EpsilonGreedy(0.2)
 
         # Q-handler
 
@@ -203,22 +201,22 @@ class VectorMLPSimple(BombermanBundle):
         self._optimizer = optim.RAdam(self._neural_net.parameters(), lr=0.0001)
 
         device_use = "cuda" if torch.cuda.is_available() else "cpu"
-        self._regression_model = regression_models.NeuralNetworkVectorQRM(self._neural_net, self._transformer, self._loss, self._optimizer, N_ACTIONS, device_use)
+        self._regression_model = regression_models.DoubleNeuralNetworkVectorQRM(self._neural_net, self._transformer, self._loss, self._optimizer, N_ACTIONS, device_use, tau=0.05)
 
-        self._training_memory_use = training_memory.TrainingMemory(100)
+        self._training_memory_use = training_memory.TrainingMemory(400)
 
         self._sampler = samplers.RandomSampler()
 
         sample_step = (3, 64, self._sampler)
         sample_round = (1, 256, self._sampler)
 
-        self._q_handler = qhandler.RegressionQHandler(self._regression_model, self._training_memory_use, N_ACTIONS, sample_step, sample_round)
+        self._q_handler = qhandler.DoubleRegressionQHandler(self._regression_model, self._training_memory_use, N_ACTIONS, sample_step, sample_round, discount_factor=0.95, target_update_frequency=10)
 
         # Q Agent
         self._q_agent_ = qagents.SimpleQLearningAgent(self._q_handler, self._ex_ex_handler, N_ACTIONS)
 
         # Rewarder
-        self._rewarder_ = rewarders.SimpleRewarder()
+        self._rewarder_ = rewarders.CoinsSurvives()
 
     @property
     def _q_agent(self) -> qagents.QLearningAgent:
@@ -275,3 +273,108 @@ class VectorMLPSimple(BombermanBundle):
 
         # if self._n_training_runs > 0:
         #     self._rewarder_ = rewarders.TemplateRewarder()
+
+
+class CNNVectorMLP(BombermanBundle):
+    """
+    Uses:
+    - Standard regression Q-learning
+    - CNN -> Vector MLP
+    - Epsilon greedy
+    - Random sampling
+    """
+
+    def __init__(self):
+        """
+        Initializes all components.
+        """
+        super().__init__()
+
+        # Exploration and exploitation
+        self._ex_ex_handler = policy_modifiers.EpsilonGreedy(0.2)
+
+        # Q-handler
+
+        # Regression model
+        self._transformer = transforms.AllFields(WIDTH, HEIGHT)
+        cnn = networks.SimpleCNN([3,3,3], ["same", "same", "same"], [8, 32, 64, 64], (WIDTH, HEIGHT))
+        out_size = np.prod(cnn.output_size)
+        mlp = networks.NeuralNetwork(out_size, [1024, 1024], N_ACTIONS)
+        self._neural_net = nn.Sequential(cnn, nn.Flatten(), mlp)
+        self._loss = nn.SmoothL1Loss()
+        self._optimizer = optim.RAdam(self._neural_net.parameters(), lr=0.0001)
+
+        device_use = "cuda" if torch.cuda.is_available() else "cpu"
+        self._regression_model = regression_models.DoubleNeuralNetworkVectorQRM(self._neural_net, self._transformer, self._loss, self._optimizer, N_ACTIONS, device_use, tau=0.05)
+
+        self._training_memory_use = training_memory.TrainingMemory(400)
+
+        self._sampler = samplers.RandomSampler()
+
+        sample_step = (3, 64, self._sampler)
+        sample_round = (1, 256, self._sampler)
+
+        self._q_handler = qhandler.DoubleRegressionQHandler(self._regression_model, self._training_memory_use, N_ACTIONS, sample_step, sample_round, discount_factor=0.95, target_update_frequency=10)
+
+        # Q Agent
+        self._q_agent_ = qagents.SimpleQLearningAgent(self._q_handler, self._ex_ex_handler, N_ACTIONS)
+
+        # Rewarder
+        self._rewarder_ = rewarders.CoinsSurvives()
+
+    @property
+    def _q_agent(self) -> qagents.QLearningAgent:
+        return self._q_agent_
+    
+    @property
+    def _rewarder(self) -> rewarders.Rewarder:
+        return self._rewarder_
+    
+    def _state_dict(self, final: bool) -> dict:
+        # Save all components manually
+        out_dict = {
+                "training_mode": self._training_mode,
+                "n_training_runs": self._n_training_runs,
+                "was_finalized": self._was_finalized,
+                "ex_ex_handler": self._ex_ex_handler.state_dict(),
+                "transformer": self._transformer.state_dict(),
+                "neural_net": self._neural_net.state_dict(),
+                "regression_model": self._regression_model.state_dict(),
+                "q_agent": self._q_agent_.state_dict(),
+                "q_handler": self._q_handler.state_dict(),
+                "rewarder": self._rewarder_.state_dict()
+            }
+        
+        if not final:
+            out_dict.update({
+                "loss": self._loss.state_dict(),
+                "optimizer": self._optimizer.state_dict(),
+                "training_memory_use": self._training_memory_use.state_dict(),
+                "sampler": self._sampler.state_dict()
+            })
+
+        return out_dict
+    
+    def _load_state_dict(self, state_dict: dict, training: bool):
+        # Load all components manually
+        self._training_mode = state_dict["training_mode"]
+        self._n_training_runs = state_dict["n_training_runs"]
+        self._was_finalized = state_dict["was_finalized"]
+        if training:
+            self._loss.load_state_dict(state_dict["loss"])
+            self._optimizer.load_state_dict(state_dict["optimizer"])
+            self._training_memory_use.load_state_dict(state_dict["training_memory_use"])
+            self._sampler.load_state_dict(state_dict["sampler"])
+            self._rewarder_.load_state_dict(state_dict["rewarder"])
+        
+        # Always loaded
+        self._ex_ex_handler.load_state_dict(state_dict["ex_ex_handler"])
+        self._transformer.load_state_dict(state_dict["transformer"])
+        self._neural_net.load_state_dict(state_dict["neural_net"])
+        self._regression_model.load_state_dict(state_dict["regression_model"])
+        self._q_agent_.load_state_dict(state_dict["q_agent"])
+        self._q_handler.load_state_dict(state_dict["q_handler"])
+
+        # # Second phase: Use a milestone rewarder
+        # if self._n_training_runs > 0:
+        #     self._rewarder_ = rewarders.CoinsMilestones()

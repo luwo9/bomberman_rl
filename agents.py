@@ -196,7 +196,7 @@ class AgentRunner:
     Agent callback runner (called by backend).
     """
 
-    def __init__(self, train, agent_name, code_name, result_queue):
+    def __init__(self, train, agent_name, code_name, result_queue, n_rounds):
         self.agent_name = agent_name
         self.code_name = code_name
         self.result_queue = result_queue
@@ -218,6 +218,7 @@ class AgentRunner:
 
         self.fake_self = SimpleNamespace()
         self.fake_self.train = train
+        self.fake_self.n_rounds = n_rounds
 
         self.wlogger = logging.getLogger(self.agent_name + '_wrapper')
         self.wlogger.setLevel(s.LOG_AGENT_WRAPPER)
@@ -293,12 +294,13 @@ class SequentialAgentBackend(AgentBackend):
     AgentConnector realised in main thread (easy debugging).
     """
 
-    def __init__(self, train, agent_name, code_name):
+    def __init__(self, train, agent_name, code_name, n_rounds):
         super().__init__(train, agent_name, code_name, queue.Queue())
         self.runner = None
+        self._n_rounds = n_rounds
 
     def start(self):
-        self.runner = AgentRunner(self.train, self.agent_name, self.code_name, self.result_queue)
+        self.runner = AgentRunner(self.train, self.agent_name, self.code_name, self.result_queue, self._n_rounds)
 
     def send_event(self, event_name, *event_args):
         prev_cwd = os.getcwd()
@@ -312,8 +314,8 @@ class SequentialAgentBackend(AgentBackend):
 QUIT = "quit"
 
 
-def run_in_agent_runner(train: bool, agent_name: str, code_name: str, wta_queue: mp.Queue, atw_queue: mp.Queue):
-    runner = AgentRunner(train, agent_name, code_name, atw_queue)
+def run_in_agent_runner(train: bool, agent_name: str, code_name: str, wta_queue: mp.Queue, atw_queue: mp.Queue, n_rounds: int):
+    runner = AgentRunner(train, agent_name, code_name, atw_queue, n_rounds)
     while True:
         event_name, event_args = wta_queue.get()
         if event_name == QUIT:
@@ -326,12 +328,12 @@ class ProcessAgentBackend(AgentBackend):
     AgentConnector realised by a separate process (fast and safe mode).
     """
 
-    def __init__(self, train, agent_name, code_name):
+    def __init__(self, train, agent_name, code_name, n_rounds):
         super().__init__(train, agent_name, code_name, mp.Queue())
 
         self.wta_queue = mp.Queue()
 
-        self.process = mp.Process(target=run_in_agent_runner, args=(self.train, self.agent_name, self.code_name, self.wta_queue, self.result_queue))
+        self.process = mp.Process(target=run_in_agent_runner, args=(self.train, self.agent_name, self.code_name, self.wta_queue, self.result_queue, n_rounds))
 
     def start(self):
         self.process.start()

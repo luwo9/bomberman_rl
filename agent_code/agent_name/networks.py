@@ -125,5 +125,5 @@ class SimpleCNN(nn.Module):
         return next(self.parameters()).device
     
     @property
-    def output_size(self):
+    def output_size(self) -> Tuple[int, int, int]:
         return self._out_size
