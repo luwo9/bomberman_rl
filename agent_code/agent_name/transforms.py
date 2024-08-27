@@ -7,10 +7,17 @@ import numpy as np
 
 from .qsettings import ACTIONS_INV_MAP
 
-UP = ACTIONS_INV_MAP['UP']
-RIGHT = ACTIONS_INV_MAP['RIGHT']
-DOWN = ACTIONS_INV_MAP['DOWN']
-LEFT = ACTIONS_INV_MAP['LEFT']
+# Define action integers
+# NOTE: The actual actions here are transposed:
+# - Rotating a field 90 degrees is not the same as rotating the array representing it 90 degrees
+# - Image coordinates are used (would need to transpose)
+# - Instead, the actions are transposed here for more intuitive use
+# - Now the array orientation fits the intuitive action orientation
+# - "UP" moves a row up, "RIGHT" moves a column to the right, etc.
+LEFT = ACTIONS_INV_MAP['UP']
+DOWN = ACTIONS_INV_MAP['RIGHT']
+RIGHT = ACTIONS_INV_MAP['DOWN']
+UP = ACTIONS_INV_MAP['LEFT']
 
 
 class Transform(ABC):
