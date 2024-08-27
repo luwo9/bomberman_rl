@@ -2,6 +2,7 @@ from typing import List # list works as type annotation for new enough python ve
 
 from .bombermans import BombermanBundle
 from .performance_metrics import PerformanceMonitor
+from .event_maker import EventMaker
 
 def end_run(self):
     model: BombermanBundle = self.model
@@ -17,18 +18,25 @@ def end_run(self):
 def setup_training(self):
     self.perfomance_monitor = PerformanceMonitor(self.name)
     self.perfomance_monitor.start()
+    self.event_maker = EventMaker()
 
 def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_state: dict, events: List[str]):
     model: BombermanBundle = self.model
     perfomance_monitor: PerformanceMonitor = self.perfomance_monitor
-
+    event_maker: EventMaker = self.event_maker
+    
+    events = event_maker.make_events(old_game_state, self_action, new_game_state, events)
+    
     perfomance_monitor.new_step(old_game_state, events, new_game_state)
     model.game_events_occurred(old_game_state, self_action, new_game_state, events)
 
 def end_of_round(self, last_game_state: dict, last_action: str, events: List[str]):
     model: BombermanBundle = self.model
     perfomance_monitor: PerformanceMonitor = self.perfomance_monitor
+    event_maker: EventMaker = self.event_maker
 
+    events = event_maker.make_events(last_game_state, last_action, None, events)
+    
     perfomance_monitor.new_step(last_game_state, events, None)
     model.game_events_occurred(last_game_state, last_action, None, events)
 
