@@ -18,7 +18,7 @@ from fallbacks import pygame
 from items import Coin, Explosion, Bomb
 
 WorldArgs = namedtuple("WorldArgs",
-                       ["no_gui", "fps", "turn_based", "update_interval", "save_replay", "replay", "make_video", "continue_without_training", "log_dir", "save_stats", "match_name", "seed", "silence_errors", "scenario"])
+                       ["no_gui", "fps", "turn_based", "update_interval", "save_replay", "replay", "make_video", "continue_without_training", "log_dir", "save_stats", "match_name", "seed", "silence_errors", "scenario", "n_rounds"])
 
 
 class Trophy:
@@ -109,9 +109,9 @@ class GenericWorld:
         assert len(self.agents) < s.MAX_AGENTS
 
         # if self.args.single_process:
-        backend = SequentialAgentBackend(train, name, agent_dir)
+        backend = SequentialAgentBackend(train, name, agent_dir, self.args.n_rounds)
         # else:
-        # backend = ProcessAgentBackend(train, name, agent_dir)
+        # backend = ProcessAgentBackend(train, name, agent_dir, self.args.n_rounds)
         backend.start()
 
         color = self.colors.pop()
