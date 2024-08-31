@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 
 from .qsettings import ACTIONS_INV_MAP
+from .bomberman_base import get_blast_coords
 
 # Define action integers
 # NOTE: The actual actions here are transposed:
@@ -211,7 +212,7 @@ class AllFields(Transform):
 
             bombs = state['bombs']
             for (x, y), t in bombs:
-                all_fields[i, 1, x, y] = t/3
+                all_fields[i, 1, x, y] = t/3+1
 
             explosion_map = state['explosion_map']
             all_fields[i, 2, :, :] = explosion_map
@@ -221,11 +222,11 @@ class AllFields(Transform):
                 all_fields[i, 3, x, y] = 1
 
             _, self_score, self_bomb, (x, y) = state['self']
-            all_fields[i, 4, x, y] = self_score/5
+            all_fields[i, 4, x, y] = self_score/5+1
             all_fields[i, 5, x, y] = self_bomb # 1 if self_bomb else 0
 
             for _, score, bomb, (x, y) in state['others']:
-                all_fields[i, 6, x, y] = score/5
+                all_fields[i, 6, x, y] = score/5+1
                 all_fields[i, 7, x, y] = bomb
 
         return all_fields
@@ -293,4 +294,4 @@ class AllfieldsFlat(AllFields):
         transformed_states = transformed_states.reshape(-1, *self._field_shape)
         augmented_fields, augmented_actions =  super().augment(transformed_states, actions)
         augmented_flat =  augmented_fields.reshape(augmented_fields.shape[0], augmented_fields.shape[1], -1)
-        return augmented_flat, augmented_actions    
+        return augmented_flat, augmented_actions
