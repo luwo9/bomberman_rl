@@ -3,6 +3,7 @@ Used to create custom events for the agent from other events or game states.
 They can be used to combine events or create new events based on the game states.
 """
 import events as e
+import numpy as np
 from .bomberman_base import get_blast_coords
 
 place_map = {1: e.WON_GAME, 2: e.SECOND_PLACE, 3: e.THIRD_PLACE, 4: e.LOST_GAME}
@@ -10,6 +11,8 @@ place_map = {1: e.WON_GAME, 2: e.SECOND_PLACE, 3: e.THIRD_PLACE, 4: e.LOST_GAME}
 score_map = {5: e.SCORE_5, 10: e.SCORE_10, 15: e.SCORE_15, 20: e.SCORE_20, 25: e.SCORE_25, 30: e.SCORE_30, 7: e.SCORE_7, 9: e.SCORE_9, 12: e.SCORE_12}
 
 bomb_cooldown_map = {3: e.IN_BOMB_RANGE_3, 2: e.IN_BOMB_RANGE_2, 1: e.IN_BOMB_RANGE_1, 0: e.IN_BOMB_RANGE_0}
+
+crates_in_bomb_range_map = {1: e.BOMB_DROPPED_NEXT_TO_CRATE_1, 2: e.BOMB_DROPPED_NEXT_TO_CRATE_2, 4: e.BOMB_DROPPED_NEXT_TO_CRATE_4, 8: e.BOMB_DROPPED_NEXT_TO_CRATE_8}
 
 
 # Implement as a class to have a persistent state if e.g. you were to reward total number of crates destroyed
@@ -82,5 +85,18 @@ class EventMaker:
 
         if not e.CRATE_DESTROYED in events:
             events.append(e.NO_CRATE)
+
+        
+        if (self_action == 'BOMB'):
+            x,y = np.array(get_blast_coords(own_x, own_y).T)
+            crate_count = np.sum(old_game_state["field"][x,y] == 1)
+            
+            filtered_keys = [key for key in crates_in_bomb_range_map.keys() if key <= crate_count]
+            if filtered_keys:
+                largest_key = max(filtered_keys)
+                events.append(crates_in_bomb_range_map[largest_key])
+
+            
+
 
         return events
