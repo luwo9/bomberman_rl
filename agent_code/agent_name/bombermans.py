@@ -141,7 +141,7 @@ class BombermanBundle(ABC):
         :param final: bool, optional (default=False), whether this is the final save that can never be retrained
         """
         if self._training_mode:
-            with gzip.open(path, 'wb', compresslevel=1) as f:
+            with gzip.open(path, 'wb', compresslevel=4) as f:
                 pickle.dump(self._state_dict(final), f)
                 self._was_finalized = final
 

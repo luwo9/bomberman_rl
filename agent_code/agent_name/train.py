@@ -41,7 +41,7 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     model.game_events_occurred(last_game_state, last_action, None, events)
 
     current_round = last_game_state["round"]
-    if current_round % 100 == 0:
+    if current_round % 400 == 0:
         model.save(self.file_name)
 
     if current_round == self.n_rounds:
