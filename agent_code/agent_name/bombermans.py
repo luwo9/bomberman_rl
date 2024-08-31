@@ -4,6 +4,7 @@ Contains classes that package together a QAgent with all it's necessary componen
 from __future__ import annotations
 from abc import ABC, abstractmethod
 import pickle
+import gzip
 
 import torch
 import torch.nn as nn
@@ -140,7 +141,7 @@ class BombermanBundle(ABC):
         :param final: bool, optional (default=False), whether this is the final save that can never be retrained
         """
         if self._training_mode:
-            with open(path, 'wb') as f:
+            with gzip.open(path, 'wb', compresslevel=1) as f:
                 pickle.dump(self._state_dict(final), f)
                 self._was_finalized = final
 
@@ -152,7 +153,7 @@ class BombermanBundle(ABC):
         :param training: bool, optional (default=False), whether the agent is used for training or playing
         :return: BombermanBundle
         """
-        with open(path, 'rb') as f:
+        with gzip.open(path, 'rb') as f:
             state_dict = pickle.load(f)
 
         self._training_mode = training
