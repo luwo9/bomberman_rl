@@ -31,7 +31,7 @@ def ask_questions():
     return name, new_run, type_
 
 def make_filepath(name):
-    return "../../models/" + name + ".pt"
+    return "../../models/" + name + ".pt" + ".gz"
 
 
 # Callbacks

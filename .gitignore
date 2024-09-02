@@ -105,6 +105,7 @@ venv.bak/
 
 .idea
 /models/*.pt
+/models/*.pt.gz
 screenshots/*.png
 screenshots/*.mp4
 screenshots/*.webm
