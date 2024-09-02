@@ -3,6 +3,7 @@ Used to create custom events for the agent from other events or game states.
 They can be used to combine events or create new events based on the game states.
 """
 import events as e
+import numpy as np
 from .bomberman_base import get_blast_coords
 
 place_map = {1: e.WON_GAME, 2: e.SECOND_PLACE, 3: e.THIRD_PLACE, 4: e.LOST_GAME}
@@ -89,7 +90,8 @@ class EventMaker:
         
         if (self_action == 'BOMB'):
             own_x, own_y = own_position
-            x,y = np.array(get_blast_coords(own_x, own_y)).T
+            coords = get_blast_coords(own_x, own_y)
+            x,y = coords.T
             crate_count = np.sum(old_game_state["field"][x,y] == 1)
             
             filtered_keys = [key for key in crates_in_bomb_range_map.keys() if key <= crate_count]
@@ -100,7 +102,7 @@ class EventMaker:
             opponents_count = 0
             opponents_position = [opponent[3] for opponent in old_game_state["others"]]
             for position in opponents_position:
-                if position in (x,y).T:
+                if list(position) in coords.tolist():
                     opponents_count += 1
             if opponents_count > 0:
                 events.append(opponents_in_bomb_range_map[opponents_count])
