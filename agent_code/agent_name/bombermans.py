@@ -187,7 +187,13 @@ class VectorMLPSimple(BombermanBundle):
         self._loss = nn.SmoothL1Loss()
         self._optimizer = optim.RAdam(self._neural_net.parameters(), lr=0.0001)
 
-        device_use = "cuda" if torch.cuda.is_available() else "cpu"
+        #device_use = "cuda" if torch.cuda.is_available() else "cpu"
+        if torch.backends.mps.is_available():
+            device_use = torch.device("mps")  
+        elif torch.cuda.is_available():
+            device_use = torch.device("cuda") 
+        else:
+            device_use = torch.device("cpu")   
         self._regression_model = regression_models.DoubleNeuralNetworkVectorQRM(self._neural_net, self._transformer, self._loss, self._optimizer, N_ACTIONS, device_use, tau=0.05)
 
         self._training_memory_use = training_memory.TrainingMemory(400)
