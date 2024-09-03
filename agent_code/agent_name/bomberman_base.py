@@ -54,4 +54,4 @@ def get_blast_coords(x, y):
             break
         blast_coords.append((x, y - i))
 
-    return blast_coords
+    return np.array(blast_coords)

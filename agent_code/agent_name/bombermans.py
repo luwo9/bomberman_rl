@@ -24,6 +24,14 @@ from settings import COLS as WIDTH, ROWS as HEIGHT
 from .qsettings import N_ACTIONS, ACTIONS_MAP, ACTIONS_INV_MAP
 
 
+if torch.backends.mps.is_available():
+    DEVICE_USE = torch.device("mps")  
+elif torch.cuda.is_available():
+    DEVICE_USE = torch.device("cuda") 
+else:
+    DEVICE_USE = torch.device("cpu")   
+
+
 class BombermanBundle(ABC):
     """
     Abstract base class for Bombermans agents.
@@ -188,7 +196,7 @@ class VectorMLPSimple(BombermanBundle):
         self._loss = nn.SmoothL1Loss()
         self._optimizer = optim.RAdam(self._neural_net.parameters(), lr=0.0001)
 
-        device_use = "cuda" if torch.cuda.is_available() else "cpu"
+        device_use = DEVICE_USE
         self._regression_model = regression_models.DoubleNeuralNetworkVectorQRM(self._neural_net, self._transformer, self._loss, self._optimizer, N_ACTIONS, device_use, tau=0.05)
 
         self._training_memory_use = training_memory.TrainingMemory(400)
@@ -292,7 +300,7 @@ class CNNVectorMLP(BombermanBundle):
         self._loss = nn.SmoothL1Loss()
         self._optimizer = optim.RAdam(self._neural_net.parameters(), lr=0.0001)
 
-        device_use = "cuda" if torch.cuda.is_available() else "cpu"
+        device_use = DEVICE_USE
         self._regression_model = regression_models.DoubleNeuralNetworkVectorQRM(self._neural_net, self._transformer, self._loss, self._optimizer, N_ACTIONS, device_use, tau=0.05)
 
         self._training_memory_use = training_memory.TrainingMemory(400)
