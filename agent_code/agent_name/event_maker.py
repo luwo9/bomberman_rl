@@ -64,7 +64,7 @@ class EventMaker:
         bomb_range_events = []
         for (bomb_x, bomb_y), bomb_timer in bombs:
             bomb_range = get_blast_coords(bomb_x, bomb_y)
-            if own_position in bomb_range:
+            if list(own_position) in bomb_range.tolist():
                 bomb_range_events.append(bomb_cooldown_map[bomb_timer])
             
             own_x, own_y = own_position
@@ -106,11 +106,5 @@ class EventMaker:
                     opponents_count += 1
             if opponents_count > 0:
                 events.append(opponents_in_bomb_range_map[opponents_count])
-
-
-            
-
-            
-
 
         return events
