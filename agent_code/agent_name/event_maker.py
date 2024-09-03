@@ -81,12 +81,22 @@ class EventMaker:
         else:
             events.append(e.NO_BOMB_RANGE)
 
+        if (self_action == 'BOMB'):
+            own_x, own_y = own_position
+            x, y = np.array(get_blast_coords(own_x, own_y).T)
+            crate_count = np.sum(old_game_state["field"][x, y] == 1)
+            
+            filtered_keys = [key for key in crates_in_bomb_range_map.keys() if key <= crate_count]
+            if filtered_keys:
+                largest_key = max(filtered_keys)
+                events.append(crates_in_bomb_range_map[largest_key])
+
         # Negations
         if not e.COIN_COLLECTED in events:
             events.append(e.NO_COIN)
 
         if not e.CRATE_DESTROYED in events:
-            events.append(e.NO_CRATE)
+            events.append(e.NO_CRATE)          
 
         
         if (self_action == 'BOMB'):
