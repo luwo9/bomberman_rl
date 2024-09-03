@@ -62,6 +62,7 @@ class EventMaker:
         bombs = new_game_state["bombs"]
         own_position = new_game_state["self"][3]
 
+        # Agent in bomb range
         bomb_range_events = []
         for (bomb_x, bomb_y), bomb_timer in bombs:
             bomb_range = get_blast_coords(bomb_x, bomb_y)
@@ -81,9 +82,11 @@ class EventMaker:
         else:
             events.append(e.NO_BOMB_RANGE)
 
+        # Bomb dropped next to crates
         if (self_action == 'BOMB'):
             own_x, own_y = own_position
-            x, y = np.array(get_blast_coords(own_x, own_y).T)
+            coords = get_blast_coords(own_x, own_y)
+            x, y = coords.T
             crate_count = np.sum(old_game_state["field"][x, y] == 1)
             
             filtered_keys = [key for key in crates_in_bomb_range_map.keys() if key <= crate_count]
@@ -91,25 +94,7 @@ class EventMaker:
                 largest_key = max(filtered_keys)
                 events.append(crates_in_bomb_range_map[largest_key])
 
-        # Negations
-        if not e.COIN_COLLECTED in events:
-            events.append(e.NO_COIN)
-
-        if not e.CRATE_DESTROYED in events:
-            events.append(e.NO_CRATE)          
-
-        
-        if (self_action == 'BOMB'):
-            own_x, own_y = own_position
-            coords = get_blast_coords(own_x, own_y)
-            x,y = coords.T
-            crate_count = np.sum(old_game_state["field"][x,y] == 1)
-            
-            filtered_keys = [key for key in crates_in_bomb_range_map.keys() if key <= crate_count]
-            if filtered_keys:
-                largest_key = max(filtered_keys)
-                events.append(crates_in_bomb_range_map[largest_key])
-
+            # Bomb dropped next to opponents
             opponents_count = 0
             opponents_position = [opponent[3] for opponent in old_game_state["others"]]
             for position in opponents_position:
@@ -117,5 +102,17 @@ class EventMaker:
                     opponents_count += 1
             if opponents_count > 0:
                 events.append(opponents_in_bomb_range_map[opponents_count])
+
+        # Negations
+        if not e.COIN_COLLECTED in events:
+            events.append(e.NO_COIN)
+
+        if not e.CRATE_DESTROYED in events:
+            events.append(e.NO_CRATE)
+
+        bomb_possible = old_game_state["self"][2]
+        crate_in_range = any([event in events for event in crates_in_bomb_range_map.values()])
+        if bomb_possible and not crate_in_range:
+            events.append(e.BOMB_POSSIBLE_BUT_NO_CRATE_IN_RANGE)
 
         return events

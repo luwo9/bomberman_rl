@@ -295,3 +295,54 @@ class AllfieldsFlat(AllFields):
         augmented_fields, augmented_actions =  super().augment(transformed_states, actions)
         augmented_flat =  augmented_fields.reshape(augmented_fields.shape[0], augmented_fields.shape[1], -1)
         return augmented_flat, augmented_actions
+    
+
+class AllFieldsBombPreview(AllFields):
+    """
+    Transforms all data into an image-like format but encoding bombs as a preview of their blast coverage.
+    """
+
+    def transform(self, states):
+        """
+        Transforms the state.
+
+        :param state: list of dicts
+        :return: np.ndarray
+        """
+        num_states = len(states)
+
+        N_FIELDS = 8 # field, bombs, explosion_map, coins, self_score, self_bomb, others_score, others_bomb
+        # Maybe make something like own_cooldown at some point aswell
+        all_fields = np.zeros((num_states, N_FIELDS, self._width, self._height))
+
+        for i, state in enumerate(states):
+            # For the terminal state, set to nan
+            if state is None:
+                all_fields[i][:] = np.nan
+                continue
+
+            field = state['field']
+            all_fields[i, 0, :, :] = field
+
+            bombs = state['bombs']
+            for (x, y), t in bombs:
+                blast_coords = get_blast_coords(x, y)
+                x_blast, y_blast = blast_coords.T
+                all_fields[i, 1, x_blast, y_blast] = t/3+1
+
+            explosion_map = state['explosion_map']
+            all_fields[i, 2, :, :] = explosion_map
+
+            coins = state['coins']
+            for x, y in coins:
+                all_fields[i, 3, x, y] = 1
+
+            _, self_score, self_bomb, (x, y) = state['self']
+            all_fields[i, 4, x, y] = self_score/5+1
+            all_fields[i, 5, x, y] = self_bomb # 1 if self_bomb else 0
+
+            for _, score, bomb, (x, y) in state['others']:
+                all_fields[i, 6, x, y] = score/5+1
+                all_fields[i, 7, x, y] = bomb
+
+        return all_fields
