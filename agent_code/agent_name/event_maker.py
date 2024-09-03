@@ -2,8 +2,9 @@
 Used to create custom events for the agent from other events or game states.
 They can be used to combine events or create new events based on the game states.
 """
-import events as e
 import numpy as np
+
+import events as e
 from .bomberman_base import get_blast_coords
 
 place_map = {1: e.WON_GAME, 2: e.SECOND_PLACE, 3: e.THIRD_PLACE, 4: e.LOST_GAME}
