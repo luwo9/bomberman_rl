@@ -7,9 +7,11 @@ import time
 import os
 
 import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 import events as e
+import settings as s
 
 # Plotting rules
 N_ROWS_MAX = 4
@@ -289,14 +291,16 @@ class Score(StatTracker):
 
     def __init__(self, ax, path):
         super().__init__(ax, path)
-        self._own_score = [0]
-        self._1st_opponent_score = [0]
-        self._2nd_opponent_score = [0]
-        self._3rd_opponent_score = [0]
+        self._own_score = 0
+        self._own_scores = []
+        self._opponent_score_map = {}
 
         self._round = 1
         self._N_AVERAGE = 50
         self._was_plotted = False
+        self._first_episode = True
+
+        self._namings = ["1st", "2nd", "3rd"] + [f"{i}th" for i in range(4, s.MAX_AGENTS)] # Note that this is not fully correct e.g. it would be 21st
 
         self._setup_plot()
 
@@ -304,51 +308,45 @@ class Score(StatTracker):
         """
         Update the tracker about what happened in the game in the current step.
         """
-        self._own_score[-1] = state["self"][1]
-        opponents_scores = [opponent[1] for opponent in state["others"]]
-        opponents_scores.sort(reverse=True)
-        opps = [self._1st_opponent_score, self._2nd_opponent_score, self._3rd_opponent_score]
-        for i, (score, opponent) in enumerate(zip(opponents_scores, opps)):
-            opponent[-1] = score
+        # Keep track of who has what score until the end of the episode
+        self._own_score = state["self"][1]
+        for name, score, *_ in state["others"]:
+            self._opponent_score_map[name] = score 
 
     def end_of_episode(self):
         """
         Inform the tracker that the episode has ended.
         """
+        if self._first_episode:
+            n_opponents = len(self._opponent_score_map)
+            self._opponent_scores = [[] for _ in range(n_opponents)] # Best, 2nd best, 3rd best...
+            self._first_episode = False
+
+        # Own score
+        self._own_scores.append(self._own_score)
+
+        # Get the scores of the opponents
+        scores = list(self._opponent_score_map.values())
+        # Now sort them in best, 2nd best, 3rd best...
+        scores.sort(reverse=True)
+
+        for i, score in enumerate(scores):
+            self._opponent_scores[i].append(score)
+
         if self._round % self._N_AVERAGE == 0:
             self._plot()
 
-        # Start new round
-        self._own_score.append(0)
-        self._1st_opponent_score.append(0)
-        self._2nd_opponent_score.append(0)
-        self._3rd_opponent_score.append(0)
-
         self._round += 1
-
 
     def finish(self):
         """
         Tell the tracker the training is over to e.g. save the results.
         """
-        # End of episode does only mean a new episode if training is not over
-        # So we have to pop the last element
-        self._own_score.pop()
-        self._1st_opponent_score.pop()
-        self._2nd_opponent_score.pop()
-        self._3rd_opponent_score.pop()
-
-        
-        np.savetxt(self._path + "own_score.txt", self._own_score)
-        np.savetxt(self._path + "1st_opponent_score.txt", self._1st_opponent_score)
-        np.savetxt(self._path + "2nd_opponent_score.txt", self._2nd_opponent_score)
-        np.savetxt(self._path + "3rd_opponent_score.txt", self._3rd_opponent_score)
-
-        # Averages
-        np.savetxt(self._path + "own_score_avg.txt", _get_N_average(self._own_score, self._N_AVERAGE))
-        np.savetxt(self._path + "1st_opponent_score_avg.txt", _get_N_average(self._1st_opponent_score, self._N_AVERAGE))
-        np.savetxt(self._path + "2nd_opponent_score_avg.txt", _get_N_average(self._2nd_opponent_score, self._N_AVERAGE))
-        np.savetxt(self._path + "3rd_opponent_score_avg.txt", _get_N_average(self._3rd_opponent_score, self._N_AVERAGE))
+        np.savetxt(self._path + "own_score.txt", self._own_scores)
+        np.savetxt(self._path + "own_score_avg.txt", _get_N_average(self._own_scores, self._N_AVERAGE))
+        for score, name in zip(self._opponent_scores, self._namings):
+            np.savetxt(self._path + f"{name}_opponent_score.txt", score)
+            np.savetxt(self._path + f"{name}_opponent_score_avg.txt", _get_N_average(score, self._N_AVERAGE))
 
     def _plot(self):
         """
@@ -356,23 +354,20 @@ class Score(StatTracker):
         """
         ax: plt.Axes = self._ax
 
-        last_N_average = np.mean(self._own_score[-self._N_AVERAGE:])
+        last_N_average = np.mean(self._own_scores[-self._N_AVERAGE:])
         ax.plot(self._round, last_N_average, marker='.', color='green', label='Own')
 
-        last_N_average = np.mean(self._1st_opponent_score[-self._N_AVERAGE:])
-        ax.plot(self._round, last_N_average, marker='.', color='blue', label='1st opponent')
-
-        last_N_average = np.mean(self._2nd_opponent_score[-self._N_AVERAGE:])
-        ax.plot(self._round, last_N_average, marker='.', color='mediumblue', label='2nd opponent')
-
-        last_N_average = np.mean(self._3rd_opponent_score[-self._N_AVERAGE:])
-        ax.plot(self._round, last_N_average, marker='.', color='lightblue', label='3rd opponent')
+        noramlizer = mpl.colors.Normalize(0, len(self._opponent_scores)-1)
+        cmap = mpl.colormaps["Blues"]
+        for i, (score, name) in enumerate(zip(self._opponent_scores, self._namings)):
+            last_N_average = np.mean(score[-self._N_AVERAGE:])
+            ax.plot(self._round, last_N_average, marker='.', color=cmap(noramlizer(i)), label=name)
 
         if not self._was_plotted:
             self._was_plotted = True
-            # ax.axhline(7, color='grey', linestyle='--', label='3rd place')
-            # ax.axhline(9, color='grey', linestyle='-.', label='2nd place')
-            # ax.axhline(12, color='grey', linestyle=':', label='1st place')
+            ax.axhline(7, color='grey', linestyle='--')#, label='3rd place')
+            ax.axhline(9, color='grey', linestyle='-.')#, label='2nd place')
+            ax.axhline(12, color='grey', linestyle=':')#, label='1st place')
             ax.legend()
 
     def _setup_plot(self):
@@ -514,7 +509,7 @@ def setup_trackers(trackers, name):
     if n_rows == 1 and n_cols == 1:
         axs = np.array([axs])
 
-    path = DEFAULT_PATH+name+"_"+time.strftime("%Y%m%d-%H%M")+"/"
+    path = DEFAULT_PATH+time.strftime("%Y_%m.%d-%H.%M")+"_"+name+"/"
 
     setup_trackers = []
     for tracker_class, ax in zip(trackers, axs.flat):
