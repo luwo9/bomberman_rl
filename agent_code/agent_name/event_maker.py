@@ -17,6 +17,8 @@ crates_in_bomb_range_map = {1: e.BOMB_DROPPED_NEXT_TO_CRATE_1, 2: e.BOMB_DROPPED
 
 opponents_in_bomb_range_map = {1: e.BOMB_DROPPED_NEXT_TO_OPPONENTS_1, 2: e.BOMB_DROPPED_NEXT_TO_OPPONENTS_2, 3: e.BOMB_DROPPED_NEXT_TO_OPPONENTS_3}
 
+closest_enemy_map = {16: e.CLOSEST_ENEMY_16, 12: e.CLOSEST_ENEMY_12, 8: e.CLOSEST_ENEMY_8, 6: e.CLOSEST_ENEMY_6, 4: e.CLOSEST_ENEMY_4, 2: e.CLOSEST_ENEMY_2, 1: e.CLOSEST_ENEMY_1}
+
 # Implement as a class to have a persistent state if e.g. you were to reward total number of crates destroyed
 class EventMaker:
     def __init__(self):
@@ -103,6 +105,16 @@ class EventMaker:
             if opponents_count > 0:
                 events.append(opponents_in_bomb_range_map[opponents_count])
 
+        #Distance to other agents
+        opponents_position = [opponent[3] for opponent in old_game_state["others"]]
+        if len(opponents_position) >= 1:
+            distance = np.linalg.norm(opponents_position - np.array(own_position), axis = 1, ord=1)
+            closest = np.min(distance)
+            filtered_keys = [key for key in closest_enemy_map.keys() if key <= closest]
+            if filtered_keys:
+                smallest_key = min(filtered_keys)
+                events.append(crates_in_bomb_range_map[smallest_key])
+        
         # Negations
         if not e.COIN_COLLECTED in events:
             events.append(e.NO_COIN)
