@@ -358,7 +358,7 @@ class Score(StatTracker):
         ax.plot(self._round, last_N_average, marker='.', color='green', label='Own')
 
         noramlizer = mpl.colors.Normalize(0, len(self._opponent_scores)-1)
-        cmap = mpl.colormaps["Blues"]
+        cmap = mpl.colormaps["viridis"]
         for i, (score, name) in enumerate(zip(self._opponent_scores, self._namings)):
             last_N_average = np.mean(score[-self._N_AVERAGE:])
             ax.plot(self._round, last_N_average, marker='.', color=cmap(noramlizer(i)), label=name)
