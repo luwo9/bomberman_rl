@@ -138,15 +138,15 @@ class SurviveCratesCoins(Rewarder):
     """
     def __init__(self) -> None:
         self._game_rewards = {
-            e.COIN_COLLECTED: 4,
+            e.COIN_COLLECTED: 6,
             e.INVALID_ACTION: -0.7,
-            e.NO_COIN: -0.8,
+            e.NO_COIN: -2,
             # e.CRATE_DESTROYED: 8,
             # e.NO_CRATE: -0.3,
-            e.BOMB_DROPPED_NEXT_TO_CRATE_1: 4,
-            e.BOMB_DROPPED_NEXT_TO_CRATE_2: 4,
-            e.BOMB_DROPPED_NEXT_TO_CRATE_4: 5,
-            e.BOMB_DROPPED_NEXT_TO_CRATE_8: 6,
+            e.BOMB_DROPPED_NEXT_TO_CRATE_1: 3,
+            e.BOMB_DROPPED_NEXT_TO_CRATE_2: 3,
+            e.BOMB_DROPPED_NEXT_TO_CRATE_4: 4,
+            e.BOMB_DROPPED_NEXT_TO_CRATE_8: 5,
             e.BOMB_POSSIBLE_BUT_NO_CRATE_IN_RANGE: -1,
 
             e.WAITED: -0.5,
@@ -160,6 +160,56 @@ class SurviveCratesCoins(Rewarder):
             e.BOMB_DROPPED: 3, # Dont penalize for dropping a bomb
             e.BOMB_DISTANCE_0: -3, # Only if not dropped, but still on same tile
             # e.BOMB_DISTANCE_1: -2,
+        }
+    
+    @property
+    def _rewards_map(self):
+        return self._game_rewards
+    
+    def state_dict(self):
+        """
+        Returns the state of the rewarder as a dictionary.
+
+        :return: dict
+        """
+        return {}
+    
+    def load_state_dict(self, state_dict):
+        """
+        Loads the state of the rewarder from a dictionary.
+
+        :param state_dict: dict
+        """
+        pass
+
+
+class SurviveCratesCoinsKills(Rewarder):
+    """
+    Collection of possible rewards and how they are scaled
+    """
+    def __init__(self) -> None:
+        self._game_rewards = {
+            e.COIN_COLLECTED: 6,
+            e.INVALID_ACTION: -7,
+            e.NO_COIN: -1,
+            
+            e.BOMB_DROPPED_NEXT_TO_CRATE_PER_CRATE: 1.3,
+            e.BOMB_POSSIBLE_BUT_NO_CRATE_IN_RANGE: -1,
+            
+            e.GOT_KILLED: -100,
+            e.IN_BOMB_RANGE_1: -10,
+            e.IN_BOMB_RANGE_0: -15,
+
+            e.BOMB_DROPPED: 3, # Dont penalize for dropping a bomb:
+            e.BOMB_DISTANCE_0: -3, # Only if not dropped, but still on same tile
+            e.BOMB_DISTANCE_1: -2,
+            e.KILLED_OPPONENT: 30,
+
+            e.BOMB_DROPPED_NEXT_TO_OPPONENTS_1: 8,
+            e.BOMB_DROPPED_NEXT_TO_OPPONENTS_2: 9,
+
+            e.CLOSEST_ENEMY_CLOSER: 0.5,
+            e.CLOSEST_ENEMY_FURTHER: -0.5,
         }
     
     @property
