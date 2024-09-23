@@ -90,6 +90,8 @@ class EventMaker:
             coords = get_blast_coords(own_x, own_y)
             x, y = coords.T
             crate_count = np.sum(old_game_state["field"][x, y] == 1)
+            crate_repeated_events = [e.BOMB_DROPPED_NEXT_TO_CRATE_PER_CRATE] * crate_count
+            events.extend(crate_repeated_events)
             
             filtered_keys = [key for key in crates_in_bomb_range_map.keys() if key <= crate_count]
             if filtered_keys:
@@ -103,17 +105,27 @@ class EventMaker:
                 if list(position) in coords.tolist():
                     opponents_count += 1
             if opponents_count > 0:
-                events.append(opponents_in_bomb_range_map[opponents_count])
+                events.append(opponents_in_bomb_range_map[min(opponents_count, 3)])
 
         #Distance to other agents
         opponents_position = [opponent[3] for opponent in old_game_state["others"]]
+        new_opponents_position = [opponent[3] for opponent in new_game_state["others"]]
         if len(opponents_position) >= 1:
             distance = np.linalg.norm(opponents_position - np.array(own_position), axis = 1, ord=1)
             closest = np.min(distance)
-            filtered_keys = [key for key in closest_enemy_map.keys() if key <= closest]
+            if new_opponents_position:
+                new_distance = np.linalg.norm(new_opponents_position - np.array(own_position), axis = 1, ord=1)
+                new_closest = np.min(new_distance)
+                if new_closest < closest:
+                    events.append(e.CLOSEST_ENEMY_CLOSER)
+                elif new_closest == closest:
+                    events.append(e.CLOSEST_ENEMY_SAME)
+                else:
+                    events.append(e.CLOSEST_ENEMY_FURTHER)
+            filtered_keys = [key for key in closest_enemy_map.keys() if key >= closest]
             if filtered_keys:
                 smallest_key = min(filtered_keys)
-                events.append(crates_in_bomb_range_map[smallest_key])
+                events.append(closest_enemy_map[smallest_key])
         
         # Negations
         if not e.COIN_COLLECTED in events:
