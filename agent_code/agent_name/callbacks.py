@@ -2,15 +2,15 @@ import os
 
 from .import bombermans
 
-ASK_FOR_NAME = True
-ASK_FOR_NEW_RUN = True
-ASK_FOR_TYPE = True
+ASK_FOR_NAME = False
+ASK_FOR_NEW_RUN = False
+ASK_FOR_TYPE = False
 
 def ask_questions():
     if ASK_FOR_NAME:
         name = input("Enter the name of the agent: ")
     else:
-        name = "saved-model"
+        name = "final"
 
     if ASK_FOR_NEW_RUN:
         new_run = input("Is this a new run? (y/n): ").lower()
@@ -24,14 +24,14 @@ def ask_questions():
     if ASK_FOR_TYPE:
         type_ = input("Enter the type of the agent (BombermanBundle): ")
     else:
-        type_ = "VectorMLPSimple"
+        type_ = "CNNext"
 
     type_ = getattr(bombermans, type_) # Could sanitize this input
 
     return name, new_run, type_
 
 def make_filepath(name):
-    return "../../models/" + name + ".pt" + ".gz"
+    return name + ".pt" + ".gz"
 
 
 # Callbacks

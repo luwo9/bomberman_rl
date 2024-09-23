@@ -2,6 +2,6 @@
 # Even if they are already in docker (just to be sure as section 2 does not mention them)
 
 # Pytorch is commented as its better manually installed
-# torch
+torch
 # torchvision
 
