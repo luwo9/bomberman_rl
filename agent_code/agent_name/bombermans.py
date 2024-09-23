@@ -393,7 +393,7 @@ class CNNext(BombermanBundle):
 
         # Exploration and exploitation
         # self._ex_ex_handler = policy_modifiers.EpsilonGreedy(0.1)
-        self._ex_ex_handler = policy_modifiers.ExponentialDecayEpsilonGreedy(0.8, 0.05, 30*1200)
+        self._ex_ex_handler = policy_modifiers.ExponentialDecayEpsilonGreedy(0.8, 0.05, 60*1200)
 
         # Q-handler
 
@@ -422,7 +422,7 @@ class CNNext(BombermanBundle):
         self._q_agent_ = qagents.SimpleQLearningAgent(self._q_handler, self._ex_ex_handler, N_ACTIONS)
 
         # Rewarder
-        self._rewarder_ = rewarders.SurviveCratesCoins()
+        self._rewarder_ = rewarders.SurviveCratesCoinsKills()
 
     @property
     def _q_agent(self) -> qagents.QLearningAgent:
